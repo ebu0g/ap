@@ -34,6 +34,10 @@ import java.util.Optional;
 
 
 public class Manager {
+    
+    public BorderPane getRootPane() {
+        return borderPane;
+    }    
 
     BorderPane borderPane;
     TableView<List<String>> tableView;

@@ -54,11 +54,12 @@ public class ManagerLogin extends GridPane {
         if (DBHelper.validateManagerCredentials(username, password)) {
             // Open the Manager screen
             Manager managerScreen = new Manager();
-            Scene managerScene = new Scene(managerScreen, 800, 600); // Set appropriate width and height
+            Scene managerScene = new Scene(managerScreen.getRootPane(), 800, 600); // Use the root pane
             Stage managerStage = new Stage();
             managerStage.setTitle("Manager Dashboard");
             managerStage.setScene(managerScene);
             managerStage.show();
+
 
             // Close the login window
             Stage currentStage = (Stage) getScene().getWindow();
