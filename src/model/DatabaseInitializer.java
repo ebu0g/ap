@@ -9,7 +9,7 @@ import java.sql.Statement;
 public class DatabaseInitializer {
     public static void main(String[] args) {
         DBHelper.connect();
-        String url = "jdbc:sqlite:movieticket.db";
+        String url = "jdbc:sqlite:moviedb.db";
 
         try (Connection conn = DriverManager.getConnection(url)) {
             if (conn != null) {

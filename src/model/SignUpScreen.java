@@ -1,9 +1,10 @@
 package model;
 
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+
 import javafx.geometry.Insets;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -88,8 +89,7 @@ public class SignUpScreen extends GridPane {
                 return;
             }
         
-            // Save the user's information to the users file
-            saveUser();
+            saveUserToDatabase(username, email, password);
         
             // Clear the input fields
             usernameField.clear();
@@ -104,12 +104,26 @@ public class SignUpScreen extends GridPane {
             successAlert.setContentText("Your account has been successfully created. Please sign in.");
             successAlert.showAndWait();
         });}
-        private void saveUser() {
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter("JAVA//users.txt", true))) {
-                writer.write(usernameField.getText() + "," + emailField.getText() + "," + passwordField.getText() + "\n");
-            } catch (IOException e) {
+        private void saveUserToDatabase(String username, String email, String password) {
+            String sql = "INSERT INTO users (username, email, password) VALUES (?, ?, ?)";
+
+            try (Connection conn = DBHelper.connect();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+                pstmt.setString(1, username);
+                pstmt.setString(2, email);
+                pstmt.setString(3, password);
+                pstmt.executeUpdate();
+
+            } catch (SQLException e) {
                 e.printStackTrace();
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Database Error");
+                alert.setHeaderText("Failed to Sign Up");
+                alert.setContentText("Error while saving user to database.");
+                alert.showAndWait();
             }
         }
+
     }
         

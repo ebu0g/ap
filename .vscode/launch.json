@@ -9,7 +9,7 @@
             "name": "Launch App (JavaFX)",
             "request": "launch",
             "mainClass": "App",
-            "projectName": "JAVA_2c2b0c1d",
+            "projectName": "apNewProject",
             "cwd": "${workspaceFolder}/src",
             "vmArgs": "--module-path \"${workspaceFolder}/javafx-sdk-17.0.15/lib\" --add-modules javafx.controls,javafx.fxml",
             "classPaths": [
@@ -22,42 +22,42 @@
             "name": "Launch Confirmation",
             "request": "launch",
             "mainClass": "model.Confirmation",
-            "projectName": "JAVA_2c2b0c1d"
+            "projectName": "apNewProject"
           },
           {
             "type": "java",
             "name": "Launch Customer",
             "request": "launch",
             "mainClass": "model.Customer",
-            "projectName": "JAVA_2c2b0c1d"
+            "projectName": "apNewProject"
           },
           {
             "type": "java",
             "name": "Launch Manager",
             "request": "launch",
             "mainClass": "model.Manager",
-            "projectName": "JAVA_2c2b0c1d"
+            "projectName": "apNewProject"
           },
           {
             "type": "java",
             "name": "Launch ManagerLogin",
             "request": "launch",
             "mainClass": "model.ManagerLogin",
-            "projectName": "JAVA_2c2b0c1d"
+            "projectName": "apNewProject"
           },
           {
             "type": "java",
             "name": "Launch Rating",
             "request": "launch",
             "mainClass": "model.Rating",
-            "projectName": "JAVA_2c2b0c1d"
+            "projectName": "apNewProject"
           },
           {
             "type": "java",
             "name": "Launch Seat",
             "request": "launch",
             "mainClass": "model.Seat",
-            "projectName": "JAVA_2c2b0c1d"
+            "projectName": "apNewProject"
           },
           {
             "type": "java",

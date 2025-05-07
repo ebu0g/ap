@@ -1,5 +1,6 @@
 import model.MovieDAO;
 import model.SeatDAO;
+import javafx.application.Application;
 import model.BookingDAO;
 import model.RatingDAO;
 import model.RevenueDAO;
@@ -8,6 +9,9 @@ import model.UserDAO;
 
 public class Main {
     public static void main(String[] args) {
+         Application.launch(args);
+    }
+    public Main(){
         // Test login
         boolean login = UserDAO.authenticate("Alice", "password123");
         System.out.println("Login success: " + login);
@@ -33,3 +37,4 @@ public class Main {
         RevenueDAO.showRevenue();
     }
 }
+

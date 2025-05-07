@@ -9,7 +9,7 @@ import java.sql.SQLException;
 
 public class DBHelper {
     
-    private static final String DB_URL = "jdbc:sqlite:database/cinebook.db";
+    private static final String DB_URL = "jdbc:sqlite:moviedb.db";
     private static Connection conn = null;
 
     // Modified connect() method to return a Connection
@@ -60,4 +60,25 @@ public class DBHelper {
             e.printStackTrace();
         }
     }
+
+
+    public static boolean validateUserCredentials(String username, String password) {
+        String query = "SELECT * FROM users WHERE username = ? AND password = ?";
+    
+        try (Connection conn = connect();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+    
+            stmt.setString(1, username);
+            stmt.setString(2, password);
+    
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next(); // User exists
+            }
+    
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
 }
