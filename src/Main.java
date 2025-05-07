@@ -1,3 +1,11 @@
+import model.MovieDAO;
+import model.SeatDAO;
+import model.BookingDAO;
+import model.RatingDAO;
+import model.RevenueDAO;
+import model.UserDAO;
+
+
 public class Main {
     public static void main(String[] args) {
         // Test login

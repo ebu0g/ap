@@ -17,6 +17,13 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 
 
+import model.CustomerLogin;
+import model.ManagerLogin;
+import model.DBHelper;
+
+
+
+
 public class App extends Application {
     public static void main(String[] args) throws Exception {
         launch(args);

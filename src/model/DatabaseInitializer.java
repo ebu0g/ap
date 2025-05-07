@@ -1,3 +1,6 @@
+package model;
+
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -5,10 +8,12 @@ import java.sql.Statement;
 
 public class DatabaseInitializer {
     public static void main(String[] args) {
+        DBHelper.connect();
         String url = "jdbc:sqlite:movieticket.db";
 
         try (Connection conn = DriverManager.getConnection(url)) {
             if (conn != null) {
+                
                 Statement stmt = conn.createStatement();
 
                 // Create users table

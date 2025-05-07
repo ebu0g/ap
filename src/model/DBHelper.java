@@ -1,3 +1,6 @@
+package model;
+
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -5,6 +8,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public class DBHelper {
+    
     private static final String DB_URL = "jdbc:sqlite:database/cinebook.db";
     private static Connection conn = null;
 
