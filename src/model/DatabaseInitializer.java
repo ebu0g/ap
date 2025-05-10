@@ -46,8 +46,9 @@ public class DatabaseInitializer {
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         title TEXT NOT NULL,
                         genre TEXT,
-                        duration INTEGER,
-                        rating REAL CHECK(rating >= 0 AND rating <= 10)
+                        duration INTEGER NOT NULL,
+                        showtime TEXT NOT NULL,
+                        price REAL NOT NULL 
                     );
                 """);
 
@@ -129,12 +130,13 @@ public class DatabaseInitializer {
                 """);
 
         stmt.execute("""
-                    INSERT OR IGNORE INTO movies (title, genre, duration, rating)
+                    INSERT OR REPLACE INTO movies (id, title, genre, duration, showtime, price)
                     VALUES
-                    ('Barbie', 'Family', 120, 7.8),
-                    ('Lift', 'Action', 100, 5.0),
-                    ('Oppenhiemer', 'Drama', 100, 9.0);
+                    (1, 'Barbie', 'Family', '100', '2025-05-11 18:00', 50.0),
+                    (2, 'Lift', 'Action', '120', '2025-05-11 20:00', 40.0),
+                    (3, 'Oppenhiemer', 'Drama', '100', '2025-05-12 15:00', 60.0);
                 """);
+
 
         stmt.execute("""
                     INSERT OR IGNORE INTO seats (movie_id, seat_number, is_booked)
