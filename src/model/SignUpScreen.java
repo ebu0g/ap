@@ -2,6 +2,7 @@ package model;
 
 
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
@@ -105,25 +106,30 @@ public class SignUpScreen extends GridPane {
             successAlert.showAndWait();
         });}
         private void saveUserToDatabase(String username, String email, String password) {
-            String sql = "INSERT INTO users (username, email, password) VALUES (?, ?, ?)";
-
-            try (Connection conn = DBHelper.connect();
-                PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
+            String url = "jdbc:sqlite:database/moviedb.db";  // Adjust path if needed
+        
+            String sql = "INSERT INTO users(username, email, password, role) VALUES(?, ?, ?, ?)";
+        
+            try (Connection conn = DriverManager.getConnection(url);
+                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
+        
                 pstmt.setString(1, username);
                 pstmt.setString(2, email);
-                pstmt.setString(3, password);
+                pstmt.setString(3, password);         // Consider hashing in production
+                pstmt.setString(4, "customer");       // Default role for sign-up
+        
                 pstmt.executeUpdate();
-
+                System.out.println("✅ User saved to database: " + username);
+        
             } catch (SQLException e) {
-                e.printStackTrace();
-                Alert alert = new Alert(Alert.AlertType.ERROR);
-                alert.setTitle("Database Error");
-                alert.setHeaderText("Failed to Sign Up");
-                alert.setContentText("Error while saving user to database.");
-                alert.showAndWait();
+                System.err.println("Error saving user to database: " + e.getMessage());
+                Alert dbErrorAlert = new Alert(Alert.AlertType.ERROR);
+                dbErrorAlert.setTitle("Database Error");
+                dbErrorAlert.setHeaderText("Could not save user");
+                dbErrorAlert.setContentText("An error occurred while saving your information. Please try again.");
+                dbErrorAlert.showAndWait();
             }
         }
-
-    }
+        
+}
         

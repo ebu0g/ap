@@ -1,8 +1,8 @@
 package model;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.Random;
 import javafx.application.Application;
 import javafx.geometry.Insets;
@@ -14,44 +14,40 @@ import javafx.scene.image.Image;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-public class Confirmation{
+public class Confirmation {
 
-    
     private String movieTitle;
     private int numberOfSeats;
     private double totalPrice;
 
-    public Confirmation(String movieTitle, int numberOfSeats, double totalPrice){
-     this.movieTitle= movieTitle;
-     this.numberOfSeats=numberOfSeats;
-     this.totalPrice=totalPrice;
+    public Confirmation(String movieTitle, int numberOfSeats, double totalPrice) {
+        this.movieTitle = movieTitle;
+        this.numberOfSeats = numberOfSeats;
+        this.totalPrice = totalPrice;
 
-    
-
-       Stage primaryStage= new Stage();
-          primaryStage.setTitle("Confirmation");
-          Image icon= new Image("Logo.jpeg");
-          primaryStage.getIcons().add(icon);
+        Stage primaryStage = new Stage();
+        primaryStage.setTitle("Confirmation");
+        Image icon = new Image("Logo.jpeg");
+        primaryStage.getIcons().add(icon);
 
         VBox vbox = new VBox();
         vbox.setSpacing(10);
         vbox.setPadding(new Insets(20));
         String ticketNumber = generateTicketNumber();
 
-        Label ticketNumberLabel = new Label("Ticket Number: " + ticketNumber);      
+        Label ticketNumberLabel = new Label("Ticket Number: " + ticketNumber);
         Label movieTitleLabel = new Label("Movie Title: " + movieTitle);
         Label numberOfSeatsLabel = new Label("Number of Seats: " + numberOfSeats);
         Label totalPriceLabel = new Label("Total Price: " + totalPrice);
         Button confirmButton = new Button("Confirm");
         confirmButton.setOnAction(e -> {
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
-    alert.setTitle("CINEBOOK");
-    alert.setHeaderText(null);
-    alert.setContentText("Ticket Successfully Purchased");
-    alert.showAndWait();
-    writeTotalPriceToRevenueFile(totalPrice);
-    writeToCustomerDetail(ticketNumber);
-            
+            alert.setTitle("CINEBOOK");
+            alert.setHeaderText(null);
+            alert.setContentText("Ticket Successfully Purchased");
+            alert.showAndWait();
+            writeTicketToDatabase(ticketNumber);
+            updateRevenueDatabase();
         });
 
         vbox.getChildren().addAll(ticketNumberLabel, movieTitleLabel, numberOfSeatsLabel, totalPriceLabel, confirmButton);
@@ -59,43 +55,75 @@ public class Confirmation{
         Scene scene = new Scene(vbox, 300, 200);
         primaryStage.setScene(scene);
         primaryStage.show();
-
-       
-        
     }
+
     private String generateTicketNumber() {
         Random random = new Random();
         int ticketNumber = random.nextInt(100000) + 1;
         return String.format("%06d", ticketNumber);
     }
 
-    private void writeToCustomerDetail(String ticketNumber) {
-    try (FileWriter fileWriter = new FileWriter("JAVA//CustomerDetail.csv", true);
-         BufferedWriter writer = new BufferedWriter(fileWriter)) {
-        String line = ticketNumber + "," + movieTitle + "," + numberOfSeats + "," + totalPrice;
-        writer.write(line);
-        writer.newLine();
-    } catch (IOException e) {
-        e.printStackTrace();
-    }
-}
-   
+    // Method to write ticket purchase details to the database
+    private void writeTicketToDatabase(String ticketNumber) {
+        String query = "INSERT INTO ticket_purchases (ticket_number, movie_id, number_of_seats, total_price) VALUES (?, ?, ?, ?)";
+        try (Connection conn = DBHelper.getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
 
+            // Get movie_id from the movie title (simplified approach)
+            int movieId = getMovieIdByTitle(movieTitle);
 
-    private void writeTotalPriceToRevenueFile(double totalPrice2) {
-       try (FileWriter fileWriter = new FileWriter("JAVA//revenue.txt", true)) {
-            fileWriter.write(totalPrice + "\n");
-            fileWriter.flush();
-        } catch (IOException e) {
+            ps.setString(1, ticketNumber);
+            ps.setInt(2, movieId);
+            ps.setInt(3, numberOfSeats);
+            ps.setDouble(4, totalPrice);
+            ps.executeUpdate();
+        } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
-    
+    // Method to update revenue based on movie_id
+    private void updateRevenueDatabase() {
+        String query = "UPDATE revenue SET amount = amount + ? WHERE movie_id = ?";
+        try (Connection conn = DBHelper.getConnection();
+             PreparedStatement ps = conn.prepareStatement(query)) {
+
+            int movieId = getMovieIdByTitle(movieTitle);
+            ps.setDouble(1, totalPrice);
+            ps.setInt(2, movieId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+       // Simplified method to get the movie_id based on movie title (improve as needed)
+    private int getMovieIdByTitle(String movieTitle) {
+       String query = "SELECT id FROM movies WHERE title = ?";
+       try (Connection conn = DBHelper.getConnection(); // Ensure you have a DBHelper class to get a connection
+           PreparedStatement ps = conn.prepareStatement(query)) {
+
+          // Set the movie title to the query
+          ps.setString(1, movieTitle);
+
+          // Execute the query and get the result
+        try (var rs = ps.executeQuery()) {
+            if (rs.next()) {
+                return rs.getInt("id");  // Return the movie_id
+            } else {
+                System.err.println("Movie with title '" + movieTitle + "' not found.");
+                return -1;  // Return -1 if the movie was not found
+            }
+        }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return -1;  // Return -1 in case of an error
+        }
+    }
+
 
     public static void main(String[] args) {
-        
-
         Application.launch(args);
     }
 }

@@ -91,11 +91,11 @@ public class CustomerLogin extends GridPane {
     }
 
     private boolean isValidCredentials(String username, String password) {
-        String url = "jdbc:sqlite:moviedb.db";
-        String query = "SELECT * FROM users WHERE name = ? AND password = ?";
+        String url = "jdbc:sqlite:database/moviedb.db";
+        String sql = "SELECT username FROM users WHERE username = ? AND password = ?";
 
         try (Connection conn = DriverManager.getConnection(url);
-             PreparedStatement pstmt = conn.prepareStatement(query)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, username);
             pstmt.setString(2, password);

@@ -8,17 +8,16 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.layout.VBox;
-
 import javafx.stage.Stage;
 
-
-import java.io.FileWriter;
-import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 
 public class Rating {
 
     public Rating() {
-        Label ratingLabel = new Label("Rating (1-10):");
+        Label ratingLabel = new Label("Rating (1-5):"); // Adjusted to fit the 1-5 range for ratings
         TextField ratingTextField = new TextField();
         Label reviewLabel = new Label("Review:");
         TextArea reviewTextArea = new TextArea();
@@ -27,7 +26,9 @@ public class Rating {
         submitButton.setOnAction(e -> {
             double rating = Double.parseDouble(ratingTextField.getText());
             String review = reviewTextArea.getText();
-            writeRatingAndReviewToFile(rating, review);
+            int userId = 1; // This should be dynamically fetched based on logged-in user
+            int movieId = 1; // This should be dynamically fetched based on selected movie
+            saveRatingAndReviewToDatabase(userId, movieId, rating, review);
             System.exit(0);
         });
 
@@ -41,16 +42,31 @@ public class Rating {
         primaryStage.setScene(scene);
         primaryStage.show();
         primaryStage.setTitle("Rating and Review");
-        Image icon= new Image("Logo.jpeg");
+        Image icon = new Image("Logo.jpeg");
         primaryStage.getIcons().add(icon);
     }
 
-    private void writeRatingAndReviewToFile(double rating, String review) {
-        try (FileWriter fileWriter = new FileWriter("JAVA//rating.txt" , true)) {
-            fileWriter.write("Rating: " + rating + "\n");
-            fileWriter.write("Review: " + review + "\n");
-            fileWriter.flush();
-        } catch (IOException e) {
+    // Method to save rating and review to the database
+    private void saveRatingAndReviewToDatabase(int userId, int movieId, double rating, String review) {
+        try (Connection conn = DBHelper.getConnection()) {
+            String query = "INSERT INTO ratings (user_id, movie_id, score) VALUES (?, ?, ?)";
+            try (PreparedStatement stmt = conn.prepareStatement(query)) {
+                stmt.setInt(1, userId);
+                stmt.setInt(2, movieId);
+                stmt.setDouble(3, rating);
+                stmt.executeUpdate();
+            }
+
+            String reviewQuery = "INSERT INTO reviews (user_id, movie_id, review) VALUES (?, ?, ?)";
+            try (PreparedStatement stmt = conn.prepareStatement(reviewQuery)) {
+                stmt.setInt(1, userId);
+                stmt.setInt(2, movieId);
+                stmt.setString(3, review);
+                stmt.executeUpdate();
+            }
+
+            System.out.println("Rating and Review saved successfully.");
+        } catch (SQLException e) {
             e.printStackTrace();
         }
     }

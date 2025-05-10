@@ -1,6 +1,5 @@
 package model;
 
-
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -50,30 +49,29 @@ public class ManagerLogin extends GridPane {
         setAlignment(Pos.CENTER);
     }
 
-    private void checkCredentials() {
+private void checkCredentials() {
         String username = usernameField.getText();
         String password = passwordField.getText();
 
         if (DBHelper.validateManagerCredentials(username, password)) {
-            // Open the Manager screen
-            Manager managerScreen = new Manager();
-            Scene managerScene = new Scene(managerScreen.getRootPane(), 800, 600); // Use the root pane
-            Stage managerStage = new Stage();
-            managerStage.setTitle("Manager Dashboard");
-            managerStage.setScene(managerScene);
-            managerStage.show();
+           // Open the Manager screen
+           Manager managerScreen = new Manager();
+           Scene managerScene = new Scene(managerScreen.borderPane, 800, 600); // Use the borderPane as the root
+           Stage managerStage = new Stage();
+           managerStage.setTitle("Manager Dashboard");
+           managerStage.setScene(managerScene);
+           managerStage.show();
 
-
-            // Close the login window
-            Stage currentStage = (Stage) getScene().getWindow();
-            currentStage.close();
+           // Close the login window
+           Stage currentStage = (Stage) getScene().getWindow();
+           currentStage.close();
         } else {
-            // Display an error message
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Login Error");
-            alert.setHeaderText("Invalid Credentials");
-            alert.setContentText("Please enter the correct username and password.");
-            alert.showAndWait();
+           // Display an error message
+           Alert alert = new Alert(Alert.AlertType.ERROR);
+           alert.setTitle("Login Error");
+           alert.setHeaderText("Invalid Credentials");
+           alert.setContentText("Please enter the correct username and password.");
+           alert.showAndWait();
         }
     }
 }

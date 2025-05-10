@@ -1,7 +1,5 @@
 package model;
 
-
-
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -10,14 +8,12 @@ import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-
-
-
 
 public class Customer extends BorderPane {
 
@@ -40,27 +36,28 @@ public class Customer extends BorderPane {
         col3.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().get(2)));
         col4.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().get(3)));
 
-         // Add the columns to the table view
-         tableView.getColumns().add(col1);
-         tableView.getColumns().add(col2);
-         tableView.getColumns().add(col3);
-         tableView.getColumns().add(col4);
+        // Add the columns to the table view
+        tableView.getColumns().add(col1);
+        tableView.getColumns().add(col2);
+        tableView.getColumns().add(col3);
+        tableView.getColumns().add(col4);
 
-        // Read data from CSV
+        // Read data from the database
         List<List<String>> data = new ArrayList<>();
-        try (BufferedReader br = new BufferedReader(new FileReader("JAVA/movies.csv"))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                String[] values = line.split(",");
-                if (values.length >= 4) {
+        try (Connection conn = DBHelper.getConnection()) {
+            String query = "SELECT title, duration, price, showtime FROM movies"; // Example query
+            try (PreparedStatement stmt = conn.prepareStatement(query);
+                 ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
                     List<String> row = new ArrayList<>();
-                    for (String value : values) {
-                        row.add(value);
-                    }
+                    row.add(rs.getString("title"));
+                    row.add(String.valueOf(rs.getInt("duration")));
+                    row.add(String.valueOf(rs.getDouble("price")));
+                    row.add(rs.getString("showtime"));
                     data.add(row);
                 }
             }
-        } catch (IOException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
         }
 
@@ -80,13 +77,13 @@ public class Customer extends BorderPane {
                 alert.showAndWait();
             } else {
                 // Extract necessary data from the selected row
-                int id = 1; // Assign an appropriate ID
-                int movieId = 101; // Assign the relevant movie ID
+                String movieTitle = selectedItem.get(0);  // Movie title
+                int movieId = getMovieIdByTitle(movieTitle);  // Get movie ID from title
                 String seatNumber = "A1"; // Specify the seat number
                 boolean isBooked = false; // Set the booking status
 
                 // Create a new Seat object
-                Seat seat = new Seat(id, movieId, seatNumber, isBooked);
+                Seat seat = new Seat(1, movieId, seatNumber, isBooked);
 
                 // Proceed with your logic using the 'seat' object
                 System.out.println("Selected Seat: " + seat.getSeatNumber());
@@ -99,5 +96,24 @@ public class Customer extends BorderPane {
 
         this.setCenter(tableView);
         this.setBottom(buttonBox);
+    }
+
+    // Simplified method to get the movie_id based on movie title from the database
+    private int getMovieIdByTitle(String movieTitle) {
+        int movieId = -1; // Default value if not found
+        try (Connection conn = DBHelper.getConnection()) {
+            String query = "SELECT id FROM movies WHERE title = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(query)) {
+                stmt.setString(1, movieTitle);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        movieId = rs.getInt("id");
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return movieId;
     }
 }

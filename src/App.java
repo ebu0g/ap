@@ -22,6 +22,7 @@ import model.ManagerLogin;
 import model.DBHelper;
 
 public class App extends Application {
+
     public static void main(String[] args) throws Exception {
         launch(args);
     }
@@ -40,12 +41,11 @@ public class App extends Application {
             return new ImageView();
         }
     }
-    
 
     @Override
     public void start(Stage primaryStage) {
         try {
-            DBHelper.connect();
+            DBHelper.connect(); // Initialize database connection
 
             StackPane root = new StackPane();
             root.getChildren().add(createBackgroundImage());

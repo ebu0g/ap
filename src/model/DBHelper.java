@@ -9,7 +9,7 @@ import java.sql.SQLException;
 
 public class DBHelper {
     
-    private static final String DB_URL = "jdbc:sqlite:moviedb.db";
+    private static final String DB_URL = "jdbc:sqlite:database/moviedb.db";
     private static Connection conn = null;
 
     // Modified connect() method to return a Connection
@@ -27,7 +27,7 @@ public class DBHelper {
 
     // Method to validate manager credentials
     public static boolean validateManagerCredentials(String username, String password) {
-        String query = "SELECT * FROM managers WHERE username = ? AND password = ?";
+        String query = "SELECT * FROM users WHERE username = ? AND password = ? AND role = 'admin'";
         try (Connection conn = connect();
              PreparedStatement stmt = conn.prepareStatement(query)) {
 
@@ -39,9 +39,9 @@ public class DBHelper {
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
+            System.err.println("Error while validating manager credentials: " + e.getMessage());
         }
+        return false;
     }
 
     // Method to retrieve the current connection
