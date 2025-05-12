@@ -2,6 +2,11 @@ package model;
 
 
 import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement; 
+import java.util.HashMap;
+import java.util.Map;
 
 public class RevenueDAO {
     public static void showRevenue() {
@@ -15,5 +20,30 @@ public class RevenueDAO {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+
+    public static Map<String, Double> getRevenueSummary() {
+        Map<String, Double> summary = new HashMap<>();
+
+        String sql = "SELECT m.title, SUM(r.amount) as total " +
+                 "FROM revenue r JOIN movies m ON r.movie_id = m.id " +
+                 "GROUP BY m.title";
+
+        try (Connection conn = DBHelper.getConnection();
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                String title = rs.getString("title");
+                double total = rs.getDouble("total");
+                summary.put(title, total);
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return summary;
     }
 }

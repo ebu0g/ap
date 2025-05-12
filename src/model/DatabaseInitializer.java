@@ -6,11 +6,13 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+
 public class DatabaseInitializer {
 
     private static final String DB_URL = "jdbc:sqlite:database/moviedb.db";
 
     public static void main(String[] args) {
+
         // Ensure 'database' directory exists
         File dbDir = new File("database");
         if (!dbDir.exists()) {
@@ -48,7 +50,8 @@ public class DatabaseInitializer {
                         genre TEXT,
                         duration INTEGER NOT NULL,
                         showtime TEXT NOT NULL,
-                        price REAL NOT NULL 
+                        price REAL NOT NULL,
+                        total_seats INTEGER NOT NULL
                     );
                 """);
 
@@ -58,6 +61,7 @@ public class DatabaseInitializer {
                         movie_id INTEGER NOT NULL,
                         seat_number TEXT NOT NULL,
                         is_booked BOOLEAN DEFAULT 0,
+                        UNIQUE(movie_id, seat_number),
                         FOREIGN KEY (movie_id) REFERENCES movies(id)
                     );
                 """);
@@ -130,11 +134,11 @@ public class DatabaseInitializer {
                 """);
 
         stmt.execute("""
-                    INSERT OR REPLACE INTO movies (id, title, genre, duration, showtime, price)
+                    INSERT OR REPLACE INTO movies (id, title, genre, duration, showtime, price, total_seats)
                     VALUES
-                    (1, 'Barbie', 'Family', '100', '2025-05-11 18:00', 50.0),
-                    (2, 'Lift', 'Action', '120', '2025-05-11 20:00', 40.0),
-                    (3, 'Oppenhiemer', 'Drama', '100', '2025-05-12 15:00', 60.0);
+                    (1, 'Barbie', 'Family', '100', '2025-05-11 18:00', 50.0, 50),
+                    (2, 'Lift', 'Action', '120', '2025-05-11 20:00', 40.0, 100),
+                    (3, 'Oppenhiemer', 'Drama', '100', '2025-05-12 15:00', 60.0, 70);
                 """);
 
 
@@ -167,6 +171,12 @@ public class DatabaseInitializer {
                     (1, 1),
                     (2, 3);
                 """);
+
+        stmt.execute("""
+                    INSERT OR IGNORE INTO ticket_purchases (ticket_number, movie_id, number_of_seats, total_price)
+                    VALUES
+                    ('TCKT001', 1, 2, 100.0);
+            """);
 
         System.out.println("✅ Sample data inserted successfully.");
     }

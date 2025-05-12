@@ -10,14 +10,11 @@ import javafx.scene.image.Image;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 
 public class Rating {
 
     public Rating() {
-        Label ratingLabel = new Label("Rating (1-5):"); // Adjusted to fit the 1-5 range for ratings
+        Label ratingLabel = new Label("Rating (1-5):");
         TextField ratingTextField = new TextField();
         Label reviewLabel = new Label("Review:");
         TextArea reviewTextArea = new TextArea();
@@ -28,7 +25,13 @@ public class Rating {
             String review = reviewTextArea.getText();
             int userId = 1; // This should be dynamically fetched based on logged-in user
             int movieId = 1; // This should be dynamically fetched based on selected movie
-            saveRatingAndReviewToDatabase(userId, movieId, rating, review);
+
+            // Save rating using RatingDAO
+            RatingDAO.rateMovie(userId, movieId, rating);
+
+            // Save review using ReviewDAO
+            ReviewDAO.saveReview(userId, movieId, review);
+
             System.exit(0);
         });
 
@@ -44,30 +47,5 @@ public class Rating {
         primaryStage.setTitle("Rating and Review");
         Image icon = new Image("Logo.jpeg");
         primaryStage.getIcons().add(icon);
-    }
-
-    // Method to save rating and review to the database
-    private void saveRatingAndReviewToDatabase(int userId, int movieId, double rating, String review) {
-        try (Connection conn = DBHelper.getConnection()) {
-            String query = "INSERT INTO ratings (user_id, movie_id, score) VALUES (?, ?, ?)";
-            try (PreparedStatement stmt = conn.prepareStatement(query)) {
-                stmt.setInt(1, userId);
-                stmt.setInt(2, movieId);
-                stmt.setDouble(3, rating);
-                stmt.executeUpdate();
-            }
-
-            String reviewQuery = "INSERT INTO reviews (user_id, movie_id, review) VALUES (?, ?, ?)";
-            try (PreparedStatement stmt = conn.prepareStatement(reviewQuery)) {
-                stmt.setInt(1, userId);
-                stmt.setInt(2, movieId);
-                stmt.setString(3, review);
-                stmt.executeUpdate();
-            }
-
-            System.out.println("Rating and Review saved successfully.");
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
     }
 }

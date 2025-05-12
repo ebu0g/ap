@@ -47,4 +47,5 @@ public class Seat {
     public boolean getIsBooked() {
         return isBooked.get();
     }
+    
 }

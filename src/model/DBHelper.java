@@ -1,6 +1,5 @@
 package model;
 
-
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -8,7 +7,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public class DBHelper {
-    
+
     private static final String DB_URL = "jdbc:sqlite:database/moviedb.db";
     private static Connection conn = null;
 
@@ -44,24 +43,7 @@ public class DBHelper {
         return false;
     }
 
-    // Method to retrieve the current connection
-    public static Connection getConnection() {
-        return conn;
-    }
-
-    // Method to close the connection
-    public static void close() {
-        try {
-            if (conn != null && !conn.isClosed()) {
-                conn.close();
-                System.out.println("Database connection closed.");
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-
+    // Method to validate user credentials
     public static boolean validateUserCredentials(String username, String password) {
         String query = "SELECT * FROM users WHERE username = ? AND password = ?";
     
@@ -80,5 +62,34 @@ public class DBHelper {
             return false;
         }
     }
-    
+
+    // Method to retrieve the current connection
+    public static Connection getConnection() {
+        return conn;
+    }
+
+    // Method to close the connection
+    public static void close() {
+        try {
+            if (conn != null && !conn.isClosed()) {
+                conn.close();
+                System.out.println("Database connection closed.");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void testConnection() {
+        try (Connection conn = connect()) {
+            if (conn != null) {
+                System.out.println("✅ Connection to database successful.");
+            } else {
+                System.out.println("Failed to connect to the database.");
+            }
+        } catch (SQLException e) {
+            System.err.println("Database connection error: " + e.getMessage());
+        }
+    }
+
 }

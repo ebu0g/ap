@@ -1,7 +1,11 @@
 package model;
 
+import java.io.IOException;
+
+import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.paint.Color;
@@ -62,17 +66,10 @@ public class ManagerLogin extends GridPane {
 
             if (rs.next()) {
                 String role = rs.getString("role");
-
                 if ("admin".equalsIgnoreCase(role)) {
-                    // Launch the manager dashboard
-                    Manager managerScreen = new Manager();
-                    Stage managerStage = new Stage();
-                    managerScreen.start(managerStage); // Start the Application (this launches it properly)
-
-                    // Close the login window
-                    Stage currentStage = (Stage) getScene().getWindow();
-                    currentStage.close();
-
+                    Stage currentStage = (Stage) loginButton.getScene().getWindow();
+                    Manager managerApp = new Manager();
+                    managerApp.start(currentStage); // ✅ FIXED: call start(Stage)
                 } else {
                     showAlert("Access Denied", "You are not authorized to access the manager dashboard.");
                 }
@@ -92,5 +89,19 @@ public class ManagerLogin extends GridPane {
         alert.setHeaderText(null);
         alert.setContentText(content);
         alert.showAndWait();
+    }
+
+
+    public void showCustomerList(Stage stage) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/managerDashboard.fxml"));
+            Scene scene = new Scene(loader.load());
+            stage.setTitle("Manager Dashboard");
+            stage.setScene(scene);
+            stage.show();
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.err.println("[ERROR] Could not load Manager Dashboard.");
+        }
     }
 }

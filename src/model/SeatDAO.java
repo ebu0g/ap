@@ -26,5 +26,38 @@ public class SeatDAO {
                 // Handle exceptions appropriately
             }
         }
+
+        public static boolean addSeat(Seat seat) {
+            String sql = "INSERT INTO seats (movie_id, seat_number, is_booked) VALUES (?, ?, ?)";
+
+            try (Connection conn = DBHelper.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+                stmt.setInt(1, seat.getMovieId());
+                stmt.setString(2, seat.getSeatNumber());
+                stmt.setBoolean(3, seat.getIsBooked());
+                stmt.executeUpdate();
+                return true;
+
+            } catch (SQLException e) {
+                e.printStackTrace();
+                return false;
+            }
+        }
+
+        public static boolean addSeat(int movieId, String seatNumber) {
+            return addSeat(new Seat(0, movieId, seatNumber, false)); // defaults isBooked to false
+        }
+
+        public class SeatTest {
+            public static void main(String[] args) {
+                boolean success = SeatDAO.addSeat(1, "A3");  // Try adding seat A3 for movie ID 1
+                if (success) {
+                    System.out.println("Seat added.");
+                } else {
+                    System.out.println("Failed to add seat.");
+                }
+            }
+        }
 }
     
