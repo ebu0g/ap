@@ -51,7 +51,8 @@ public class DatabaseInitializer {
                         duration INTEGER NOT NULL,
                         showtime TEXT NOT NULL,
                         price REAL NOT NULL,
-                        total_seats INTEGER NOT NULL
+                        total_seats INTEGER NOT NULL CHECK (total_seats >= 0),
+                        UNIQUE(title, showtime)
                     );
                 """);
 
@@ -60,20 +61,17 @@ public class DatabaseInitializer {
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         movie_id INTEGER NOT NULL,
                         seat_number TEXT NOT NULL,
-                        available BOOLEAN DEFAULT 1, -- 1 means available, 0 means booked
-                        seat_type TEXT NOT NULL DEFAULT 'Regular' CHECK (seat_type IN ('Regular', 'VIP')),
-                        UNIQUE(movie_id, seat_number),
-                        FOREIGN KEY (movie_id) REFERENCES movies(id)
+                        is_booked INTEGER DEFAULT 0 CHECK (is_booked IN (0, 1)),
+                        FOREIGN KEY (movie_id) REFERENCES movies(id),
+                        UNIQUE (movie_id, seat_number)
                     );
                 """);
 
         stmt.execute("""
-                    CREATE TABLE IF NOT EXISTS ratings (
+                    CREATE TABLE IF NOT EXISTS rating (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id INTEGER NOT NULL,
                         movie_id INTEGER NOT NULL,
-                        score INTEGER CHECK(score >= 1 AND score <= 5),
-                        FOREIGN KEY (user_id) REFERENCES users(id),
+                        rating INTEGER NOT NULL,
                         FOREIGN KEY (movie_id) REFERENCES movies(id)
                     );
                 """);
@@ -105,6 +103,7 @@ public class DatabaseInitializer {
                         user_id INTEGER NOT NULL,
                         seat_id INTEGER NOT NULL,
                         timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE (user_id, seat_id),
                         FOREIGN KEY (user_id) REFERENCES users(id),
                         FOREIGN KEY (seat_id) REFERENCES seats(id)
                     );
@@ -136,29 +135,29 @@ public class DatabaseInitializer {
                 """);
 
         stmt.execute("""
-                    INSERT OR REPLACE INTO movies (id, title, genre, duration, showtime, price, total_seats)
+                    INSERT OR REPLACE INTO movies (title, genre, duration, showtime, price, total_seats)
                     VALUES
-                    (1, 'Barbie', 'Family', '100', '2025-05-11 18:00', 50.0, 50),
-                    (2, 'Lift', 'Action', '120', '2025-05-11 20:00', 40.0, 100),
-                    (3, 'Oppenhiemer', 'Drama', '100', '2025-05-12 15:00', 60.0, 70);
+                    ('Barbie', 'Family', '100', '2025-05-11 18:00', 50.0, 50),
+                    ('Lift', 'Action', '120', '2025-05-11 20:00', 40.0, 100),
+                    ('Oppenhiemer', 'Drama', '100', '2025-05-12 15:00', 60.0, 70);
                 """);
 
 
         stmt.execute("""
-                    INSERT OR IGNORE INTO seats (movie_id, seat_number, available, seat_type)
+                    INSERT OR IGNORE INTO seats (movie_id, seat_number, is_booked)
                     VALUES
-                    (1, 'A1', 1, 'Regular'),
-                    (1, 'A2', 0, 'VIP'),
-                    (2, 'B1', 1, 'Regular');
+                    (1, 'A1', 1),
+                    (1, 'A2', 0),
+                    (2, 'B1', 1);
                 """);
 
 
         stmt.execute("""
-                    INSERT OR IGNORE INTO ratings (user_id, movie_id, score)
+                    INSERT OR IGNORE INTO rating (movie_id, rating)
                     VALUES
-                    (1, 1, 5),
-                    (1, 2, 4),
-                    (2, 3, 5);
+                    (1, 5),
+                    (2, 4),
+                    (3, 5);
                 """);
 
         stmt.execute("""

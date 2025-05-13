@@ -131,48 +131,66 @@ public class Manager extends Application {
     }
 
     private void addMovieToDatabase(String title, String genre, String priceText, String durationText, String showtimeText, String seatCountText) {
-        if (title.isEmpty() || genre == null || priceText.isEmpty() || durationText.isEmpty() || showtimeText.isEmpty() || seatCountText.isEmpty()) {
-            showAlert(Alert.AlertType.ERROR, "Missing fields", "All fields must be filled.");
+    if (title.isEmpty() || genre == null || priceText.isEmpty() || durationText.isEmpty() || showtimeText.isEmpty() || seatCountText.isEmpty()) {
+        showAlert(Alert.AlertType.ERROR, "Missing fields", "All fields must be filled.");
+        return;
+    }
+
+    try {
+        double price = Double.parseDouble(priceText);
+        int duration = Integer.parseInt(durationText);
+        int totalSeats = Integer.parseInt(seatCountText);
+
+        // Verify connection before proceeding
+        if (connection == null || connection.isClosed()) {
+            showAlert(Alert.AlertType.ERROR, "Database Connection Error", "Failed to connect to the database.");
             return;
         }
 
-        try {
-            double price = Double.parseDouble(priceText);
-            int duration = Integer.parseInt(durationText);
-            int totalSeats = Integer.parseInt(seatCountText);
-
-            // Verify connection before proceeding
-            if (connection == null || connection.isClosed()) {
-                showAlert(Alert.AlertType.ERROR, "Database Connection Error", "Failed to connect to the database.");
-                return;
+        // Check if movie already exists with the same title and showtime
+        String checkMovieSql = "SELECT COUNT(*) FROM movies WHERE title = ? AND showtime = ?";
+        try (PreparedStatement checkStmt = connection.prepareStatement(checkMovieSql)) {
+            checkStmt.setString(1, title);
+            checkStmt.setString(2, showtimeText);
+            ResultSet rs = checkStmt.executeQuery();
+            if (rs.next() && rs.getInt(1) > 0) {
+                showAlert(Alert.AlertType.WARNING, "Duplicate Movie", "A movie with the same title and showtime already exists.");
+                return;  // Return early if the movie already exists
             }
+        }
 
-            // Insert movie record
-            String insertMovieSql = "INSERT INTO movies (title, genre, duration, showtime, price, total_seats) VALUES (?, ?, ?, ?, ?, ?)";
-            try (PreparedStatement stmt = connection.prepareStatement(insertMovieSql, Statement.RETURN_GENERATED_KEYS)) {
-                stmt.setString(1, title);
-                stmt.setString(2, genre);
-                stmt.setInt(3, duration);
-                stmt.setString(4, showtimeText);
-                stmt.setDouble(5, price);
-                stmt.setInt(6, totalSeats);
-                stmt.executeUpdate();
+         // Insert movie record without specifying the ID (let the DB handle it)
+        String insertMovieSql = "INSERT INTO movies (title, genre, duration, showtime, price, total_seats) VALUES (?, ?, ?, ?, ?, ?)";
+        try (PreparedStatement stmt = connection.prepareStatement(insertMovieSql, Statement.RETURN_GENERATED_KEYS)) {
+            stmt.setString(1, title);
+            stmt.setString(2, genre);
+            stmt.setInt(3, duration);
+            stmt.setString(4, showtimeText);
+            stmt.setDouble(5, price);
+            stmt.setInt(6, totalSeats);
+            stmt.executeUpdate();
 
-                // Get the movie ID for seat insertion
-                ResultSet generatedKeys = stmt.getGeneratedKeys();
-                if (generatedKeys.next()) {
-                    int movieId = generatedKeys.getInt(1);
-                    insertSeatsForMovie(movieId, totalSeats); // Insert seats after movie
-                    showAlert(Alert.AlertType.INFORMATION, "Success", "Movie and seats added successfully.");
-                }
+
+             // Get the movie ID for seat insertion
+            ResultSet generatedKeys = stmt.getGeneratedKeys();
+            if (generatedKeys.next()) {
+                int movieId = generatedKeys.getInt(1); // The generated ID of the inserted movie
+                insertSeatsForMovie(movieId, totalSeats); // Insert seats after movie
+                showAlert(Alert.AlertType.INFORMATION, "Success", "Movie and seats added successfully.");
             }
-        } catch (NumberFormatException e) {
-            showAlert(Alert.AlertType.ERROR, "Invalid input", "Price, duration, and seat count must be numbers.");
-        } catch (SQLException e) {
+        }
+    } catch (NumberFormatException e) {
+        showAlert(Alert.AlertType.ERROR, "Invalid input", "Price, duration, and seat count must be numbers.");
+    } catch (SQLException e) {
+        // Handle unique constraint failure for the movie
+        if (e.getMessage().contains("UNIQUE constraint failed")) {
+            showAlert(Alert.AlertType.WARNING, "Duplicate Movie", "A movie with the same title and showtime already exists.");
+        } else {
             e.printStackTrace();
             showAlert(Alert.AlertType.ERROR, "Database Error", "Failed to add movie.");
         }
     }
+}
 
     private void insertSeatsForMovie(int movieId, int totalSeats) {
         String sql = "INSERT INTO seats (movie_id, seat_number, is_booked) VALUES (?, ?, 0)";
