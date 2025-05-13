@@ -1,30 +1,21 @@
 package model;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 
 public class BookingDAO {
-    public static void bookSeat(int userId, int seatId) {
-        try (Connection conn = DBHelper.getConnection()) {
-            conn.setAutoCommit(false);
-
-            try (var insertStmt = conn.prepareStatement("INSERT INTO bookings(user_id, seat_id) VALUES (?, ?)");
-                 var updateStmt = conn.prepareStatement("UPDATE seats SET is_booked = 1 WHERE id = ?")) {
-
-                insertStmt.setInt(1, userId);
-                insertStmt.setInt(2, seatId);
-                insertStmt.executeUpdate();
-
-                updateStmt.setInt(1, seatId);
-                updateStmt.executeUpdate();
-
-                conn.commit();
-                System.out.println("✅ Seat booked successfully.");
-            } catch (Exception e) {
-                conn.rollback();
-                e.printStackTrace();
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    public boolean bookSeat(int seatId, int userId) {
+    String query = "UPDATE seats SET is_booked = 1, booked_by = ? WHERE id = ? AND is_booked = 0";
+    try (Connection conn = DBHelper.getConnection();
+         PreparedStatement stmt = conn.prepareStatement(query)) {
+        stmt.setInt(1, userId);
+        stmt.setInt(2, seatId);
+        int rowsUpdated = stmt.executeUpdate();
+        return rowsUpdated > 0;
+    } catch (SQLException e) {
+        e.printStackTrace();
+        return false;
     }
+}
 }

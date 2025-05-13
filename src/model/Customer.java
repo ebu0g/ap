@@ -19,8 +19,10 @@ public class Customer extends BorderPane {
 
     private TableView<List<String>> tableView;
     private ObservableList<List<String>> observableData;
+    
 
     public Customer() {
+        
         // Initialize the TableView
         tableView = new TableView<>();
 
@@ -44,7 +46,7 @@ public class Customer extends BorderPane {
 
         // Read data from the database
         List<List<String>> data = new ArrayList<>();
-        try (Connection conn = DBHelper.getConnection()) {
+        try (Connection conn = DBHelper.getConnection()){
             String query = "SELECT title, duration, price, showtime FROM movies"; // Example query
             try (PreparedStatement stmt = conn.prepareStatement(query);
                  ResultSet rs = stmt.executeQuery()) {
@@ -65,55 +67,155 @@ public class Customer extends BorderPane {
         observableData = FXCollections.observableArrayList(data);
         tableView.setItems(observableData);
 
-        // Create Select Seat button
+    
         Button selectSeatButton = new Button("Select Seat");
         selectSeatButton.setOnAction(event -> {
-            List<String> selectedItem = tableView.getSelectionModel().getSelectedItem();
-            if (selectedItem == null) {
-                Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                alert.setTitle("No Movie Selected");
-                alert.setHeaderText(null);
-                alert.setContentText("Please select a movie from the table.");
-                alert.showAndWait();
-            } else {
-                // Extract necessary data from the selected row
-                String movieTitle = selectedItem.get(0);  // Movie title
-                int movieId = getMovieIdByTitle(movieTitle);  // Get movie ID from title
-                String seatNumber = "A1"; // Specify the seat number
-                boolean isBooked = false; // Set the booking status
+    List<String> selectedItem = tableView.getSelectionModel().getSelectedItem();
+    if (selectedItem != null) {
+        String movieTitle = selectedItem.get(0);
+        handleSeatSelection(movieTitle);
+    } else {
+        showAlert("No Selection", "Please select a movie from the list first.");
+    }
+});
 
-                // Create a new Seat object
-                Seat seat = new Seat(1, movieId, seatNumber, isBooked);
+        
+        Button rateMovieButton = new Button("Rate Movie");
+        rateMovieButton.setOnAction(event -> handleRating());
 
-                // Proceed with your logic using the 'seat' object
-                System.out.println("Selected Seat: " + seat.getSeatNumber());
-            }
-        });
-
-        // Layout setup
-        HBox buttonBox = new HBox(selectSeatButton);
+        HBox buttonBox = new HBox(10, selectSeatButton, rateMovieButton);
         buttonBox.setPadding(new Insets(10));
 
         this.setCenter(tableView);
         this.setBottom(buttonBox);
     }
 
-    // Simplified method to get the movie_id based on movie title from the database
-    private int getMovieIdByTitle(String movieTitle) {
-        int movieId = -1; // Default value if not found
+     // Method to handle seat selection for a movie
+    public void handleSeatSelection(String movieTitle) {
+    int movieId = getMovieIdByTitle(movieTitle);
+    if (movieId == -1) {
+        showAlert("Movie Not Found", "The selected movie does not exist.");
+        return;
+    }
+
+    // Fetch available seats
+    List<String> availableSeats = new ArrayList<>();
+    String query = "SELECT seat_number FROM seats WHERE movie_id = ? AND is_booked = 0";
+    try (Connection conn = DBHelper.getConnection();
+         PreparedStatement stmt = conn.prepareStatement(query)) {
+        stmt.setInt(1, movieId);
+        ResultSet rs = stmt.executeQuery();
+        while (rs.next()) {
+            availableSeats.add(rs.getString("seat_number"));
+        }
+    } catch (SQLException e) {
+        e.printStackTrace();
+        showAlert("Database Error", "Error fetching available seats.");
+        return;
+    }
+
+    if (availableSeats.isEmpty()) {
+        showAlert("No Seats Available", "There are no available seats for this movie.");
+        return;
+    }
+
+    // Ask the user to select a seat
+    ChoiceDialog<String> seatDialog = new ChoiceDialog<>(availableSeats.get(0), availableSeats);
+    seatDialog.setTitle("Select a Seat");
+    seatDialog.setHeaderText("Available seats for " + movieTitle);
+    seatDialog.setContentText("Choose your seat:");
+
+    seatDialog.showAndWait().ifPresent(selectedSeat -> {
         try (Connection conn = DBHelper.getConnection()) {
-            String query = "SELECT id FROM movies WHERE title = ?";
-            try (PreparedStatement stmt = conn.prepareStatement(query)) {
-                stmt.setString(1, movieTitle);
-                try (ResultSet rs = stmt.executeQuery()) {
-                    if (rs.next()) {
-                        movieId = rs.getInt("id");
-                    }
+            String update = "UPDATE seats SET is_booked = 1 WHERE movie_id = ? AND seat_number = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(update)) {
+                stmt.setInt(1, movieId);
+                stmt.setString(2, selectedSeat);
+                int updated = stmt.executeUpdate();
+                if (updated > 0) {
+                    showAlert("Booking Confirmed", "Seat " + selectedSeat + " has been booked successfully!");
+                } else {
+                    showAlert("Booking Failed", "Could not book the selected seat.");
                 }
             }
         } catch (SQLException e) {
             e.printStackTrace();
+            showAlert("Error", "Failed to book the selected seat.");
         }
-        return movieId;
+    });
+}
+
+    private void handleRating() {
+        List<String> selectedItem = tableView.getSelectionModel().getSelectedItem();
+        if (selectedItem == null) {
+            showAlert("No Movie Selected", "Please select a movie to rate.");
+            return;
+        }
+
+        String movieTitle = selectedItem.get(0);
+        int movieId = getMovieIdByTitle(movieTitle);
+
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Rate Movie");
+        dialog.setHeaderText("Provide a rating between 1 and 5 for " + movieTitle);
+        dialog.setContentText("Rating:");
+
+        dialog.showAndWait().ifPresent(input -> {
+            try {
+                int rating = Integer.parseInt(input);
+                if (rating < 1 || rating > 5) {
+                    showAlert("Invalid Rating", "Rating must be between 1 and 5.");
+                    return;
+                }
+
+                try (Connection conn = DBHelper.getConnection()) {
+                    String insertRating = "INSERT INTO rating (movie_id, rating) VALUES (?, ?)";
+                    try (PreparedStatement stmt = conn.prepareStatement(insertRating)) {
+                        stmt.setInt(1, movieId);
+                        stmt.setInt(2, rating);
+                        stmt.executeUpdate();
+                        showAlert("Thank You", "Your rating has been recorded.");
+                    }
+                }
+            } catch (NumberFormatException e) {
+                showAlert("Invalid Input", "Please enter a valid number.");
+            } catch (SQLException e) {
+                e.printStackTrace();
+                showAlert("Database Error", "Failed to save your rating.");
+            }
+        });
+    }
+
+    // Method to fetch the movie ID by title
+    public int getMovieIdByTitle(String title) {
+        String query = "SELECT id FROM movies WHERE title = ?";
+        try (Connection conn = DBHelper.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setString(1, title);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("id");
+            }
+        } catch (SQLException e) {
+            System.err.println("Error fetching movie ID: " + e.getMessage());
+        }
+        return -1; // Return -1 if movie not found
+    }
+
+    private void showAlert(String title, String content) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(content);
+        alert.showAndWait();
+    }
+
+    // Main method or other methods for customer interaction
+    public static void main(String[] args) {
+        Customer customer = new Customer();
+
+        // Example: Handling seat selection for a specific movie
+        customer.handleSeatSelection("The Avengers");
     }
 }

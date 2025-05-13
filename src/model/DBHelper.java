@@ -11,6 +11,12 @@ public class DBHelper {
     private static final String DB_URL = "jdbc:sqlite:database/moviedb.db";
     private static Connection conn = null;
 
+
+    // Method to retrieve the current connection
+    public static Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(DB_URL);
+    }
+
     // Modified connect() method to return a Connection
     public static Connection connect() {
         try {
@@ -63,10 +69,7 @@ public class DBHelper {
         }
     }
 
-    // Method to retrieve the current connection
-    public static Connection getConnection() {
-        return conn;
-    }
+    
 
     // Method to close the connection
     public static void close() {

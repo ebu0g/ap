@@ -60,7 +60,8 @@ public class DatabaseInitializer {
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         movie_id INTEGER NOT NULL,
                         seat_number TEXT NOT NULL,
-                        is_booked BOOLEAN DEFAULT 0,
+                        available BOOLEAN DEFAULT 1, -- 1 means available, 0 means booked
+                        seat_type TEXT NOT NULL DEFAULT 'Regular' CHECK (seat_type IN ('Regular', 'VIP')),
                         UNIQUE(movie_id, seat_number),
                         FOREIGN KEY (movie_id) REFERENCES movies(id)
                     );
@@ -82,9 +83,10 @@ public class DatabaseInitializer {
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         user_id INTEGER NOT NULL,
                         movie_id INTEGER NOT NULL,
-                        review TEXT NOT NULL,
-                        FOREIGN KEY (user_id) REFERENCES users(id),
-                        FOREIGN KEY (movie_id) REFERENCES movies(id)
+                        rating INTEGER CHECK(rating BETWEEN 1 AND 5),
+                        comment TEXT,
+                        FOREIGN KEY(user_id) REFERENCES users(id),
+                        FOREIGN KEY(movie_id) REFERENCES movies(id)
                     );
                 """);
 
@@ -143,12 +145,13 @@ public class DatabaseInitializer {
 
 
         stmt.execute("""
-                    INSERT OR IGNORE INTO seats (movie_id, seat_number, is_booked)
+                    INSERT OR IGNORE INTO seats (movie_id, seat_number, available, seat_type)
                     VALUES
-                    (1, 'A1', 1),
-                    (1, 'A2', 0),
-                    (2, 'B1', 1);
+                    (1, 'A1', 1, 'Regular'),
+                    (1, 'A2', 0, 'VIP'),
+                    (2, 'B1', 1, 'Regular');
                 """);
+
 
         stmt.execute("""
                     INSERT OR IGNORE INTO ratings (user_id, movie_id, score)
