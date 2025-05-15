@@ -117,7 +117,7 @@ public class RevenueDAO {
 
     public double calculateRevenueForMovie(int movieId) {
     double totalRevenue = 0.0;
-    String sql = "SELECT SUM(amount) FROM revenue WHERE movie_id = ?";
+    String sql = "SELECT total_revenue FROM revenue WHERE movie_id = ?";
 
     try (Connection conn = DBHelper.getConnection();
          PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -126,7 +126,7 @@ public class RevenueDAO {
         ResultSet rs = pstmt.executeQuery();
 
         if (rs.next()) {
-            totalRevenue = rs.getDouble(1);
+            totalRevenue = rs.getDouble("total_revenue");
         }
     } catch (SQLException e) {
         e.printStackTrace();

@@ -1,9 +1,11 @@
 package model;
 
 import javafx.application.Application;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
@@ -26,25 +28,25 @@ public class Manager extends Application {
         // Buttons
         Button addButton = new Button("Add Movies");
         Button deleteButton = new Button("Delete Movies");
-        Button manageSeatsBtn = new Button("Manage Seats by Movie ID");
         Button showSummaryBtn = new Button("Show Seat Summary");
         Button generateRevenueBtn = new Button("Generate Revenue");
+        Button viewReviewsBtn = new Button("View Reviews");
         Button loadButton = new Button("Customer Management");
         Button exit = new Button("Exit");
 
         // Button actions
         addButton.setOnAction(e -> showAddMovieForm(primaryStage));
         deleteButton.setOnAction(e -> showDeleteMovieForm());
-        manageSeatsBtn.setOnAction(e -> openSeatManagement((Stage) borderPane.getScene().getWindow()));
         showSummaryBtn.setOnAction(e -> showSeatSummary((Stage) borderPane.getScene().getWindow()));
         generateRevenueBtn.setOnAction(e -> new RevenueView().showRevenueWindow());
+        viewReviewsBtn.setOnAction(e -> showReviewList()); 
         loadButton.setOnAction(e -> showCustomerList());
         exit.setOnAction(e -> primaryStage.close());
 
 
         VBox menuBox = new VBox(10);
         menuBox.setPadding(new Insets(20));
-        menuBox.getChildren().addAll(addButton, deleteButton, manageSeatsBtn, showSummaryBtn, generateRevenueBtn, loadButton, exit);
+        menuBox.getChildren().addAll(addButton, deleteButton, showSummaryBtn, generateRevenueBtn, viewReviewsBtn, loadButton, exit);
 
         borderPane = new BorderPane();
         borderPane.setCenter(menuBox);
@@ -62,21 +64,20 @@ public class Manager extends Application {
 
         Button addButton = new Button("Add Movies");
         Button deleteButton = new Button("Delete Movies");
-        Button manageSeatsBtn = new Button("Manage Seats by Movie ID");
         Button showSummaryBtn = new Button("Show Seat Summary");
         Button generateRevenueButton = new Button("Generated Revenue");
+        Button viewReviewsBtn = new Button("View Reviews");
         Button loadButton = new Button("Customer Management");
         Button exit = new Button("Exit");
 
         addButton.setOnAction(e -> showAddMovieForm((Stage) borderPane.getScene().getWindow()));
         deleteButton.setOnAction(e -> showDeleteMovieForm());
-        manageSeatsBtn.setOnAction(e -> openSeatManagement((Stage) borderPane.getScene().getWindow()));
         showSummaryBtn.setOnAction(e -> showSeatSummary((Stage) borderPane.getScene().getWindow()));
         generateRevenueButton.setOnAction(e -> showRevenue());
+        viewReviewsBtn.setOnAction(e -> showReviewList()); 
         loadButton.setOnAction(e -> showCustomerList());
         exit.setOnAction(e -> ((Stage) borderPane.getScene().getWindow()).close());
-
-        menuBox.getChildren().addAll(addButton, deleteButton, manageSeatsBtn, showSummaryBtn, generateRevenueButton, loadButton, exit);
+        menuBox.getChildren().addAll(addButton, deleteButton, showSummaryBtn, generateRevenueButton, viewReviewsBtn, loadButton, exit);
         borderPane.setCenter(menuBox);
     }
 
@@ -243,69 +244,58 @@ public class Manager extends Application {
         borderPane.setCenter(form);
     }
 
-    private void openSeatManagement(Stage stage) {
-    Dialog<Integer> dialog = new Dialog<>();
-    dialog.setTitle("Choose Movie ID");
-    dialog.setHeaderText("Enter Movie ID to manage seats:");
+    
+    
+    private void showSeatSummary(Stage stage) {
+    String sql = """
+        SELECT m.id AS movie_id, m.title,
+               COUNT(DISTINCT s.seat_number) AS total_seats,
+               COUNT(DISTINCT t.seat_number) AS booked_seats
+        FROM movies m
+        LEFT JOIN seats s ON m.id = s.movie_id
+        LEFT JOIN booking b ON m.id = b.movie_id
+        LEFT JOIN ticket t ON b.id = t.booking_id
+        GROUP BY m.id, m.title
+    """;
 
-    TextField movieIdField = new TextField();
-    dialog.getDialogPane().setContent(movieIdField);
-    dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+    try (PreparedStatement stmt = connection.prepareStatement(sql);
+         ResultSet rs = stmt.executeQuery()) {
 
-    dialog.setResultConverter(dialogButton -> {
-        if (dialogButton == ButtonType.OK) {
-            try {
-                return Integer.parseInt(movieIdField.getText());
-            } catch (NumberFormatException e) {
-                showAlert(Alert.AlertType.ERROR, "Invalid Input", "Please enter a valid movie ID.");
-            }
+        TableView<ObservableList<String>> table = new TableView<>();
+
+        String[] headers = { "Movie ID", "Title", "Total Seats", "Booked Seats", "Available Seats" };
+        for (int i = 0; i < headers.length; i++) {
+            final int colIndex = i;
+            TableColumn<ObservableList<String>, String> col = new TableColumn<>(headers[i]);
+            col.setCellValueFactory(param -> new SimpleStringProperty(param.getValue().get(colIndex)));
+            table.getColumns().add(col);
         }
-        return null;
-    });
 
-    dialog.showAndWait().ifPresent(movieId -> {
-        SeatView seatView = new SeatView();
-        VBox seatUI = seatView.getViewForMovie(movieId, "Manage Seats for Movie ID: " + movieId);
+        while (rs.next()) {
+            int total = rs.getInt("total_seats");
+            int booked = rs.getInt("booked_seats");
+            int available = total - booked;
+            ObservableList<String> row = FXCollections.observableArrayList(
+                String.valueOf(rs.getInt("movie_id")),
+                rs.getString("title"),
+                String.valueOf(total),
+                String.valueOf(booked),
+                String.valueOf(available)
+            );
+            table.getItems().add(row);
+        }
 
-        Stage seatStage = new Stage();
-        seatStage.setTitle("Seat Management");
-        seatStage.setScene(new Scene(seatUI));
-        seatStage.show();
-    });
+        
+        stage.setTitle("Seat Summary");
+        stage.setScene(new Scene(new VBox(10, table), 600, 400));
+        stage.show();
+
+    } catch (SQLException e) {
+        e.printStackTrace();
+        showAlert(Alert.AlertType.ERROR, "Database Error", "Could not load seat summary.");
+    }
 }
 
-    private void showSeatSummary(Stage stage) {
-        String query = """
-            SELECT movie_id,
-                SUM(CASE WHEN is_booked = 1 THEN 1 ELSE 0 END) AS booked_count,
-                SUM(CASE WHEN is_booked = 0 THEN 1 ELSE 0 END) AS available_count
-            FROM seats
-            GROUP BY movie_id
-            """;
-
-        try (Connection conn = DBHelper.getConnection();
-            PreparedStatement stmt = conn.prepareStatement(query);
-            ResultSet rs = stmt.executeQuery()) {
-
-            StringBuilder report = new StringBuilder("Seat Summary by Movie:\n\n");
-            while (rs.next()) {
-                int movieId = rs.getInt("movie_id");
-                int booked = rs.getInt("booked_count");
-                int available = rs.getInt("available_count");
-
-                report.append("Movie ID: ").append(movieId)
-                      .append(" | Booked: ").append(booked)
-                      .append(" | Available: ").append(available)
-                    .append("\n");
-            }
-
-            showAlert(Alert.AlertType.INFORMATION, "Seat Summary", report.toString());
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Database Error", "Could not retrieve seat summary.");
-        }
-    }
 
     private void showRevenue() {
         MovieDAO movieDAO = new MovieDAO();
@@ -325,34 +315,52 @@ public class Manager extends Application {
     }
 
     private void showCustomerList() {
-        customerTable = new TableView<>();
-        customerTable.setPrefHeight(400);
+    customerTable = new TableView<>();
+    customerTable.setPrefHeight(400);
 
-        TableColumn<Customer, Integer> idCol = new TableColumn<>("ID");
-        idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
+    TableColumn<Customer, Integer> idCol = new TableColumn<>("ID");
+    idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
+    idCol.setPrefWidth(50);
 
-        TableColumn<Customer, String> nameCol = new TableColumn<>("Name");
-        nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+    TableColumn<Customer, String> nameCol = new TableColumn<>("Name");
+    nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+    nameCol.setPrefWidth(150);
 
-        TableColumn<Customer, String> emailCol = new TableColumn<>("Email");
-        emailCol.setCellValueFactory(new PropertyValueFactory<>("email"));
+    TableColumn<Customer, String> emailCol = new TableColumn<>("Email");
+    emailCol.setCellValueFactory(new PropertyValueFactory<>("email"));
+    emailCol.setPrefWidth(200);
 
-        TableColumn<Customer, String> usernameCol = new TableColumn<>("Username");
-        usernameCol.setCellValueFactory(new PropertyValueFactory<>("username"));
+    TableColumn<Customer, String> usernameCol = new TableColumn<>("Username");
+    usernameCol.setCellValueFactory(new PropertyValueFactory<>("username"));
+    usernameCol.setPrefWidth(150);
 
         customerTable.getColumns().add(idCol);
         customerTable.getColumns().add(nameCol);
         customerTable.getColumns().add(emailCol);
         customerTable.getColumns().add(usernameCol);
-        customerTable.setItems(loadCustomers());
-
-        Button back = new Button("Back to Dashboard");
-        back.setOnAction(e -> showDashboard());
-
-        VBox view = new VBox(10, new Label("Customer List"), customerTable, back);
-        view.setPadding(new Insets(20));
-        borderPane.setCenter(view);
+    
+    ObservableList<Customer> customers = loadCustomers();
+    if (customers != null) {
+        customerTable.setItems(customers);
     }
+
+    // Sort by ID by default
+    customerTable.getSortOrder().add(idCol);
+    idCol.setSortType(TableColumn.SortType.ASCENDING);
+
+    Button back = new Button("Back to Dashboard");
+    back.setOnAction(e -> showDashboard());
+
+    Label title = new Label("Customer List");
+    title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
+
+    VBox view = new VBox(15, title, customerTable, back);
+    view.setPadding(new Insets(20));
+    view.setAlignment(Pos.TOP_CENTER);
+    VBox.setVgrow(customerTable, Priority.ALWAYS);
+
+    borderPane.setCenter(view);
+}
 
     private ObservableList<Customer> loadCustomers() {
         ObservableList<Customer> list = FXCollections.observableArrayList();
@@ -374,6 +382,58 @@ public class Manager extends Application {
         }
         return list;
     }
+
+   private void showReviewList() {
+    TableView<Review> reviewTable = new TableView<>();
+
+    TableColumn<Review, Integer> idCol = new TableColumn<>("Review ID");
+    idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
+
+    TableColumn<Review, String> movieCol = new TableColumn<>("Movie");
+    movieCol.setCellValueFactory(new PropertyValueFactory<>("movieTitle"));
+
+    TableColumn<Review, String> reviewCol = new TableColumn<>("Review");
+    reviewCol.setCellValueFactory(new PropertyValueFactory<>("reviewText"));
+
+    reviewTable.getColumns().add(idCol);
+    reviewTable.getColumns().add(movieCol);
+    reviewTable.getColumns().add(reviewCol);
+
+    ObservableList<Review> reviews = loadReviews();
+    reviewTable.setItems(reviews);
+
+    Button back = new Button("Back to Dashboard");
+    back.setOnAction(e -> showDashboard());
+
+    VBox layout = new VBox(10, new Label("Movie Reviews"), reviewTable, back);
+    layout.setPadding(new Insets(20));
+
+    borderPane.setCenter(layout);
+}
+
+
+    private ObservableList<Review> loadReviews() {
+    ObservableList<Review> reviews = FXCollections.observableArrayList();
+    String sql = "SELECT r.id, m.title AS movie, r.comment " +
+                 "FROM review r " +
+                 "JOIN movies m ON r.movie_id = m.id";
+
+    try (Statement stmt = connection.createStatement();
+         ResultSet rs = stmt.executeQuery(sql)) {
+
+        while (rs.next()) {
+            int id = rs.getInt("id");
+            String movieTitle = rs.getString("movie");
+            String reviewText = rs.getString("comment");
+
+            reviews.add(new Review(id, movieTitle, reviewText));
+        }
+    } catch (SQLException e) {
+        e.printStackTrace();
+        showAlert(Alert.AlertType.ERROR, "Error", "Could not load reviews.");
+    }
+    return reviews;
+}
 
     private void showAlert(Alert.AlertType alertType, String title, String message) {
     Alert alert = new Alert(alertType);
@@ -424,4 +484,28 @@ public class Manager extends Application {
             return password;
         }
     }
+
+    // Review model class
+    public class Review {
+    private int id;
+    private String movieTitle;
+    private String reviewText;
+
+    // Add constructor with these 3 parameters
+    public Review(int id, String movieTitle, String reviewText) {
+        this.id = id;
+        this.movieTitle = movieTitle;
+        this.reviewText = reviewText;
+    }
+
+    // getters and setters here
+    public int getId() { return id; }
+    public String getMovieTitle() { return movieTitle; }
+    public String getReviewText() { return reviewText; }
+
+    public void setId(int id) { this.id = id; }
+    public void setMovieTitle(String movieTitle) { this.movieTitle = movieTitle; }
+    public void setReviewText(String reviewText) { this.reviewText = reviewText; }
+}
+
 }

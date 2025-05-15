@@ -4,6 +4,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
+import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 
@@ -19,24 +20,26 @@ public class SeatView {
         seatTableView = new TableView<>();
         seatData = FXCollections.observableArrayList();
 
-        // Table columns
-        TableColumn<Seat, Number> idColumn = new TableColumn<>("ID");
+        // Define columns
+        TableColumn<Seat, Number> idColumn = new TableColumn<>("Seat ID");
         idColumn.setCellValueFactory(cell -> cell.getValue().idProperty());
 
         TableColumn<Seat, String> seatNumberColumn = new TableColumn<>("Seat Number");
         seatNumberColumn.setCellValueFactory(cell -> cell.getValue().seatNumberProperty());
 
-        TableColumn<Seat, Boolean> isBookedColumn = new TableColumn<>("Booked");
+        TableColumn<Seat, Boolean> isBookedColumn = new TableColumn<>("Is Booked?");
         isBookedColumn.setCellValueFactory(cell -> cell.getValue().isBookedProperty());
+        isBookedColumn.setCellFactory(CheckBoxTableCell.forTableColumn(isBookedColumn)); // Optional visual improvement
 
-        // Add columns individually
+        
         seatTableView.getColumns().add(idColumn);
         seatTableView.getColumns().add(seatNumberColumn);
         seatTableView.getColumns().add(isBookedColumn);
+        
 
         loadSeatData();
 
-        // Buttons
+        // Action buttons
         Button deleteSeatBtn = new Button("Delete Selected");
         Button refreshBtn = new Button("Refresh");
 
@@ -46,7 +49,7 @@ public class SeatView {
         HBox buttonBox = new HBox(10, deleteSeatBtn, refreshBtn);
 
         VBox vbox = new VBox(10,
-                new Label("Available Seats for Movie: " + movieTitle),
+                new Label("Seat Summary for Movie: " + movieTitle),
                 seatTableView,
                 buttonBox
         );
@@ -56,29 +59,32 @@ public class SeatView {
     }
 
     private void loadSeatData() {
-    seatData.clear();
-    String query = "SELECT * FROM seats WHERE movie_id = ? AND is_booked = 0 ORDER BY CAST(SUBSTR(seat_number, 2) AS INTEGER)";
+        seatData.clear();
 
-    try (Connection conn = DBHelper.getConnection();
-         PreparedStatement stmt = conn.prepareStatement(query)) {
+        String query = "SELECT * FROM seats WHERE movie_id = ? " +
+                       "ORDER BY CAST(SUBSTR(seat_number, 2) AS INTEGER)"; // e.g., A1 -> 1
 
-        stmt.setInt(1, movieId);
-        ResultSet rs = stmt.executeQuery();
+        try (Connection conn = DBHelper.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
 
-        while (rs.next()) {
-            int id = rs.getInt("id");
-            String seatNumber = rs.getString("seat_number");
-            boolean isBooked = rs.getBoolean("is_booked");
+            stmt.setInt(1, movieId);
+            ResultSet rs = stmt.executeQuery();
 
-            seatData.add(new Seat(id, movieId, seatNumber, isBooked));
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                String seatNumber = rs.getString("seat_number");
+                boolean isBooked = rs.getBoolean("is_booked");
+
+                seatData.add(new Seat(id, movieId, seatNumber, isBooked));
+            }
+
+            seatTableView.setItems(seatData);
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            showAlert("Error loading seat data.");
         }
-
-        seatTableView.setItems(seatData);
-    } catch (SQLException e) {
-        e.printStackTrace();
-        showAlert("Error loading seat data.");
     }
-}
 
     private void deleteSelectedSeat() {
         Seat selected = seatTableView.getSelectionModel().getSelectedItem();
@@ -92,7 +98,7 @@ public class SeatView {
 
             stmt.setInt(1, selected.getId());
             stmt.executeUpdate();
-            loadSeatData();  // Reload seat data after deletion
+            loadSeatData(); // Refresh after deletion
 
         } catch (SQLException e) {
             e.printStackTrace();
