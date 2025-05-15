@@ -12,6 +12,7 @@ import javafx.stage.Stage;
 
 
 import java.sql.*;
+import java.util.List;
 
 public class Manager extends Application {
     private BorderPane borderPane;
@@ -27,7 +28,7 @@ public class Manager extends Application {
         Button deleteButton = new Button("Delete Movies");
         Button manageSeatsBtn = new Button("Manage Seats by Movie ID");
         Button showSummaryBtn = new Button("Show Seat Summary");
-        Button generateRevenueButton = new Button("Generated Revenue");
+        Button generateRevenueBtn = new Button("Generate Revenue");
         Button loadButton = new Button("Customer Management");
         Button exit = new Button("Exit");
 
@@ -36,13 +37,14 @@ public class Manager extends Application {
         deleteButton.setOnAction(e -> showDeleteMovieForm());
         manageSeatsBtn.setOnAction(e -> openSeatManagement((Stage) borderPane.getScene().getWindow()));
         showSummaryBtn.setOnAction(e -> showSeatSummary((Stage) borderPane.getScene().getWindow()));
-        generateRevenueButton.setOnAction(e -> showRevenue());
+        generateRevenueBtn.setOnAction(e -> new RevenueView().showRevenueWindow());
         loadButton.setOnAction(e -> showCustomerList());
         exit.setOnAction(e -> primaryStage.close());
 
+
         VBox menuBox = new VBox(10);
         menuBox.setPadding(new Insets(20));
-        menuBox.getChildren().addAll(addButton, deleteButton, manageSeatsBtn, showSummaryBtn, generateRevenueButton, loadButton, exit);
+        menuBox.getChildren().addAll(addButton, deleteButton, manageSeatsBtn, showSummaryBtn, generateRevenueBtn, loadButton, exit);
 
         borderPane = new BorderPane();
         borderPane.setCenter(menuBox);
@@ -86,9 +88,9 @@ public class Manager extends Application {
         ChoiceBox<String> genreChoiceBox = new ChoiceBox<>();
         genreChoiceBox.getItems().addAll("Action", "Comedy", "Drama", "Horror", "Romance", "Sci-Fi");
     
-        // Set a default placeholder text (non-selectable)
-        genreChoiceBox.setValue("Genre");  // Set a default text item which acts as placeholder
-    
+        ComboBox<String> genreComboBox = new ComboBox<>();
+        genreComboBox.setPromptText("Select Genre");
+
         genreChoiceBox.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             // If the user selects an option, replace the placeholder
             if ("Genre".equals(newValue)) {
@@ -242,36 +244,35 @@ public class Manager extends Application {
     }
 
     private void openSeatManagement(Stage stage) {
-        Dialog<Integer> dialog = new Dialog<>();
-        dialog.setTitle("Choose Movie ID");
-        dialog.setHeaderText("Enter Movie ID to manage seats:");
+    Dialog<Integer> dialog = new Dialog<>();
+    dialog.setTitle("Choose Movie ID");
+    dialog.setHeaderText("Enter Movie ID to manage seats:");
 
-        TextField movieIdField = new TextField();
-        dialog.getDialogPane().setContent(movieIdField);
-        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+    TextField movieIdField = new TextField();
+    dialog.getDialogPane().setContent(movieIdField);
+    dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
 
-        dialog.setResultConverter(dialogButton -> {
-            if (dialogButton == ButtonType.OK) {
-                try {
-                    return Integer.parseInt(movieIdField.getText());
-                } catch (NumberFormatException e) {
-                    showAlert(Alert.AlertType.ERROR, "Invalid Input", "Please enter a valid movie ID.");
-                }
+    dialog.setResultConverter(dialogButton -> {
+        if (dialogButton == ButtonType.OK) {
+            try {
+                return Integer.parseInt(movieIdField.getText());
+            } catch (NumberFormatException e) {
+                showAlert(Alert.AlertType.ERROR, "Invalid Input", "Please enter a valid movie ID.");
             }
-            return null;
-        });
+        }
+        return null;
+    });
 
-        dialog.showAndWait().ifPresent(movieId -> {
-            SeatView seatView = new SeatView();
-            VBox seatUI = seatView.getViewForMovie(movieId, "Manage Seats for Movie ID: " + movieId);
+    dialog.showAndWait().ifPresent(movieId -> {
+        SeatView seatView = new SeatView();
+        VBox seatUI = seatView.getViewForMovie(movieId, "Manage Seats for Movie ID: " + movieId);
 
-            Stage seatStage = new Stage();
-            seatStage.setTitle("Seat Management");
-            seatStage.setScene(new Scene(seatUI));
-            seatStage.show();
-        });
-    }
-
+        Stage seatStage = new Stage();
+        seatStage.setTitle("Seat Management");
+        seatStage.setScene(new Scene(seatUI));
+        seatStage.show();
+    });
+}
 
     private void showSeatSummary(Stage stage) {
         String query = """
@@ -307,27 +308,20 @@ public class Manager extends Application {
     }
 
     private void showRevenue() {
-        String sql = """
-            SELECT SUM(movies.price) AS total
-            FROM seats
-            JOIN movies ON seats.movie_id = movies.id
-            WHERE seats.is_booked = 1
-        """;
-        try (PreparedStatement stmt = connection.prepareStatement(sql);
-            ResultSet rs = stmt.executeQuery()) {
+    // 1. Calculate and save revenue for all movies
+    MovieDAO movieDAO = new MovieDAO();
+    RevenueDAO revenueDAO = new RevenueDAO();
+    List<Movie> movies = movieDAO.getAllMovies();
 
-            if (rs.next()) {
-                double total = rs.getDouble("total");
-                showAlert(Alert.AlertType.INFORMATION, "Total Revenue", "Revenue: $" + total);
-            } else {
-                showAlert(Alert.AlertType.INFORMATION, "Revenue", "No bookings found.");
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Database Error", "Failed to fetch revenue.");
-        }
+    for (Movie movie : movies) {
+        int movieId = movie.getId();
+        double totalRevenue = revenueDAO.calculateRevenueForMovie(movieId); // You must define this method
+        revenueDAO.insertRevenue(movieId, totalRevenue); // Saves to revenue table
     }
 
+    // 2. Open the Revenue view window
+    new RevenueView().showRevenueWindow();
+}
 
     private void showCustomerList() {
         customerTable = new TableView<>();

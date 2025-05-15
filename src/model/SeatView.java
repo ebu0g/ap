@@ -38,14 +38,12 @@ public class SeatView {
 
         // Buttons
         Button deleteSeatBtn = new Button("Delete Selected");
-        Button updateSeatBtn = new Button("Update Seat Number");
         Button refreshBtn = new Button("Refresh");
 
         deleteSeatBtn.setOnAction(e -> deleteSelectedSeat());
-        updateSeatBtn.setOnAction(e -> updateSeatDialog());
         refreshBtn.setOnAction(e -> loadSeatData());
 
-        HBox buttonBox = new HBox(10, deleteSeatBtn, updateSeatBtn, refreshBtn);
+        HBox buttonBox = new HBox(10, deleteSeatBtn, refreshBtn);
 
         VBox vbox = new VBox(10,
                 new Label("Available Seats for Movie: " + movieTitle),
@@ -58,29 +56,29 @@ public class SeatView {
     }
 
     private void loadSeatData() {
-        seatData.clear();
-        String query = "SELECT * FROM seats WHERE movie_id = ? AND is_booked = 0";
+    seatData.clear();
+    String query = "SELECT * FROM seats WHERE movie_id = ? AND is_booked = 0 ORDER BY CAST(SUBSTR(seat_number, 2) AS INTEGER)";
 
-        try (Connection conn = DBHelper.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(query)) {
+    try (Connection conn = DBHelper.getConnection();
+         PreparedStatement stmt = conn.prepareStatement(query)) {
 
-            stmt.setInt(1, movieId);
-            ResultSet rs = stmt.executeQuery();
+        stmt.setInt(1, movieId);
+        ResultSet rs = stmt.executeQuery();
 
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                String seatNumber = rs.getString("seat_number");
-                boolean isBooked = rs.getBoolean("is_booked");
+        while (rs.next()) {
+            int id = rs.getInt("id");
+            String seatNumber = rs.getString("seat_number");
+            boolean isBooked = rs.getBoolean("is_booked");
 
-                seatData.add(new Seat(id, movieId, seatNumber, isBooked));
-            }
-
-            seatTableView.setItems(seatData);
-        } catch (SQLException e) {
-            e.printStackTrace();
-            showAlert("Error loading seat data.");
+            seatData.add(new Seat(id, movieId, seatNumber, isBooked));
         }
+
+        seatTableView.setItems(seatData);
+    } catch (SQLException e) {
+        e.printStackTrace();
+        showAlert("Error loading seat data.");
     }
+}
 
     private void deleteSelectedSeat() {
         Seat selected = seatTableView.getSelectionModel().getSelectedItem();
@@ -100,39 +98,6 @@ public class SeatView {
             e.printStackTrace();
             showAlert("Error deleting seat.");
         }
-    }
-
-    private void updateSeatDialog() {
-        Seat selected = seatTableView.getSelectionModel().getSelectedItem();
-        if (selected == null) {
-            showAlert("No seat selected.");
-            return;
-        }
-
-        TextInputDialog dialog = new TextInputDialog(selected.getSeatNumber());
-        dialog.setTitle("Update Seat Number");
-        dialog.setHeaderText(null);
-        dialog.setContentText("Enter new seat number:");
-
-        dialog.showAndWait().ifPresent(newSeatNumber -> {
-            if (newSeatNumber.trim().isEmpty()) {
-                showAlert("Seat number cannot be empty.");
-                return;
-            }
-
-            try (Connection conn = DBHelper.getConnection();
-                 PreparedStatement stmt = conn.prepareStatement("UPDATE seats SET seat_number = ? WHERE id = ?")) {
-
-                stmt.setString(1, newSeatNumber);
-                stmt.setInt(2, selected.getId());
-                stmt.executeUpdate();
-                loadSeatData();
-
-            } catch (SQLException e) {
-                e.printStackTrace();
-                showAlert("Error updating seat number.");
-            }
-        });
     }
 
     private void showAlert(String message) {

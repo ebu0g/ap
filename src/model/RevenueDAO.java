@@ -1,49 +1,85 @@
 package model;
 
 
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement; 
-import java.util.HashMap;
-import java.util.Map;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class RevenueDAO {
-    public static void showRevenue() {
-        try (Connection conn = DBHelper.getConnection();
-             var stmt = conn.createStatement();
-             var rs = stmt.executeQuery("SELECT movies.title, revenue.amount FROM revenue JOIN movies ON revenue.movie_id = movies.id")) {
-
-            while (rs.next()) {
-                System.out.println(rs.getString("title") + ": $" + rs.getDouble("amount"));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-
-    public static Map<String, Double> getRevenueSummary() {
-        Map<String, Double> summary = new HashMap<>();
-
-        String sql = "SELECT m.title, SUM(r.amount) as total " +
-                 "FROM revenue r JOIN movies m ON r.movie_id = m.id " +
-                 "GROUP BY m.title";
+    public List<Revenue> getAllRevenue() {
+        List<Revenue> revenueList = new ArrayList<>();
+        String query = "SELECT m.title, r.total_revenue " +
+                       "FROM revenue r JOIN movies m ON r.movie_id = m.id";
 
         try (Connection conn = DBHelper.getConnection();
-            Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery(sql)) {
+             PreparedStatement pstmt = conn.prepareStatement(query);
+             ResultSet rs = pstmt.executeQuery()) {
 
             while (rs.next()) {
                 String title = rs.getString("title");
-                double total = rs.getDouble("total");
-                summary.put(title, total);
+                double totalRevenue = rs.getDouble("total_revenue");
+                revenueList.add(new Revenue(title, totalRevenue));
             }
 
         } catch (SQLException e) {
             e.printStackTrace();
         }
 
-        return summary;
+        return revenueList;
+    }
+
+
+    public double calculateRevenueForMovie(int movieId) {
+    double total = 0.0;
+    String sql = "SELECT COUNT(*) FROM seat_selection WHERE movie_id = ? AND booked = 1"; // assuming 'booked' marks confirmed seats
+    try (Connection conn = DBHelper.getConnection();
+         PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+        pstmt.setInt(1, movieId);
+        ResultSet rs = pstmt.executeQuery();
+        if (rs.next()) {
+            int seatsBooked = rs.getInt(1);
+            double ticketPrice = 100.0; // Set your fixed ticket price here
+            total = seatsBooked * ticketPrice;
+        }
+    } catch (SQLException e) {
+        e.printStackTrace();
+    }
+    return total;
+}
+
+public void insertRevenue(int movieId, double totalRevenue) {
+    String sql = "INSERT INTO revenue(movie_id, total_revenue) VALUES (?, ?)";
+
+    try (Connection conn = DBHelper.getConnection();
+         PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+        pstmt.setInt(1, movieId);
+        pstmt.setDouble(2, totalRevenue);
+        pstmt.executeUpdate();
+
+    } catch (SQLException e) {
+        e.printStackTrace();
     }
 }
+
+public void insertOrUpdateRevenue(int movieId, double amount) {
+        String sql = """
+            INSERT INTO revenue (movie_id, total_revenue)
+            VALUES (?, ?)
+            ON CONFLICT(movie_id) DO UPDATE SET total_revenue = total_revenue + excluded.total_revenue;
+        """;
+
+        try (Connection conn = DBHelper.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, movieId);
+            pstmt.setDouble(2, amount);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+
+

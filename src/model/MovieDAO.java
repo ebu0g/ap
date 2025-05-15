@@ -2,6 +2,11 @@ package model;
 
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MovieDAO {
     public static void listMovies() {
@@ -18,4 +23,30 @@ public class MovieDAO {
             e.printStackTrace();
         }
     }
+
+    public List<Movie> getAllMovies() {
+    List<Movie> movies = new ArrayList<>();
+    String sql = "SELECT id, title, genre, duration FROM movies";
+
+    try (Connection conn = DBHelper.getConnection();
+         PreparedStatement pstmt = conn.prepareStatement(sql);
+         ResultSet rs = pstmt.executeQuery()) {
+
+        while (rs.next()) {
+            int id = rs.getInt("id");
+            String title = rs.getString("title");
+            String genre = rs.getString("genre");
+            int duration = rs.getInt("duration");
+
+            Movie movie = new Movie(id, title, genre, duration);
+            movies.add(movie);
+        }
+
+    } catch (SQLException e) {
+        e.printStackTrace();
+    }
+
+    return movies;
+}
+
 }

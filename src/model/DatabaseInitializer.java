@@ -68,54 +68,42 @@ public class DatabaseInitializer {
                 """);
 
         stmt.execute("""
-                    CREATE TABLE IF NOT EXISTS rating (
+                    CREATE TABLE IF NOT EXISTS review (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         movie_id INTEGER NOT NULL,
                         rating INTEGER NOT NULL,
-                        FOREIGN KEY (movie_id) REFERENCES movies(id)
-                    );
-                """);
-
-        stmt.execute("""
-                    CREATE TABLE IF NOT EXISTS reviews (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id INTEGER NOT NULL,
-                        movie_id INTEGER NOT NULL,
-                        rating INTEGER CHECK(rating BETWEEN 1 AND 5),
                         comment TEXT,
-                        FOREIGN KEY(user_id) REFERENCES users(id),
-                        FOREIGN KEY(movie_id) REFERENCES movies(id)
+                        FOREIGN KEY (movie_id) REFERENCES movies(id)
                     );
                 """);
 
         stmt.execute("""
                     CREATE TABLE IF NOT EXISTS revenue (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        movie_id INTEGER NOT NULL,
-                        amount REAL DEFAULT 0.0,
+                        movie_id INTEGER,
+                        total_revenue REAL,
                         FOREIGN KEY (movie_id) REFERENCES movies(id)
                     );
                 """);
 
         stmt.execute("""
-                    CREATE TABLE IF NOT EXISTS bookings (
+                    CREATE TABLE IF NOT EXISTS booking (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id INTEGER NOT NULL,
-                        seat_id INTEGER NOT NULL,
-                        timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
-                        UNIQUE (user_id, seat_id),
-                        FOREIGN KEY (user_id) REFERENCES users(id),
-                        FOREIGN KEY (seat_id) REFERENCES seats(id)
+                        movie_id INTEGER NOT NULL,
+                        seat_number TEXT NOT NULL,
+                        booking_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE (movie_id, seat_number),
+                        FOREIGN KEY (movie_id) REFERENCES movies(id)
                     );
                 """);
 
         stmt.execute("""
-                    CREATE TABLE IF NOT EXISTS ticket_purchases (
+                    CREATE TABLE IF NOT EXISTS ticket (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        ticket_number TEXT NOT NULL,
+                        booking_id INTEGER NOT NULL,
                         movie_id INTEGER NOT NULL,
-                        number_of_seats INTEGER,
-                        total_price REAL,
+                        seat_number TEXT NOT NULL,
+                        issue_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (booking_id) REFERENCES booking(id),
                         FOREIGN KEY (movie_id) REFERENCES movies(id)
                     );
                 """);
@@ -143,42 +131,46 @@ public class DatabaseInitializer {
                 """);
 
 
-        stmt.execute("""
-                    INSERT OR IGNORE INTO seats (movie_id, seat_number, is_booked)
-                    VALUES
-                    (1, 'A1', 1),
-                    (1, 'A2', 0),
-                    (2, 'B1', 1);
-                """);
+        try (var pstmt = conn.prepareStatement(
+            "INSERT OR IGNORE INTO seats (movie_id, seat_number, is_booked) VALUES (?, ?, 0)"
+        );
+                var rs = stmt.executeQuery("SELECT id, total_seats FROM movies")) {
 
+                while (rs.next()) {
+                    int movieId = rs.getInt("id");
+                    int totalSeats = rs.getInt("total_seats");
+
+                    for (int i = 1; i <= totalSeats; i++) {
+                        String seatNumber = "S" + i; // e.g., S1, S2, S3...
+                        pstmt.setInt(1, movieId);
+                        pstmt.setString(2, seatNumber);
+                        pstmt.addBatch();
+                    }
+                }
+                pstmt.executeBatch();
+            }
 
         stmt.execute("""
-                    INSERT OR IGNORE INTO rating (movie_id, rating)
-                    VALUES
-                    (1, 5),
-                    (2, 4),
-                    (3, 5);
-                """);
-
-        stmt.execute("""
-                    INSERT OR IGNORE INTO revenue (movie_id, amount)
+                    INSERT OR IGNORE INTO revenue (movie_id, total_revenue)
                     VALUES
                     (1, 500.0),
                     (2, 900.0);
                 """);
 
         stmt.execute("""
-                    INSERT OR IGNORE INTO bookings (user_id, seat_id)
+                    INSERT OR IGNORE INTO booking (movie_id, seat_number)
                     VALUES
-                    (1, 1),
-                    (2, 3);
+                    (1, 'S1'),
+                    (1, 'S3');
                 """);
 
         stmt.execute("""
-                    INSERT OR IGNORE INTO ticket_purchases (ticket_number, movie_id, number_of_seats, total_price)
+                    INSERT OR IGNORE INTO ticket (booking_id, movie_id, seat_number)
                     VALUES
-                    ('TCKT001', 1, 2, 100.0);
-            """);
+                    (1, 1, 'S1'),
+                    (2, 1, 'S3');
+                    """);
+
 
         System.out.println("✅ Sample data inserted successfully.");
     }

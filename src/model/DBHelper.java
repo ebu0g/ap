@@ -8,7 +8,7 @@ import java.sql.SQLException;
 
 public class DBHelper {
 
-    private static final String DB_URL = "jdbc:sqlite:database/moviedb.db";
+    public static final String DB_URL = "jdbc:sqlite:database/moviedb.db";
     private static Connection conn = null;
 
 

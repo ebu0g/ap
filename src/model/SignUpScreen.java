@@ -2,8 +2,8 @@ package model;
 
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet; 
 import java.sql.SQLException;
 
 import javafx.geometry.Insets;
@@ -66,70 +66,62 @@ public class SignUpScreen extends GridPane {
 
         setHgap(10); setVgap(10); setPadding(new Insets(25, 25, 25, 25));
         signUpButton.setOnAction(event -> {
-            String username = usernameField.getText();
-            String email = emailField.getText();
-            String password = passwordField.getText();
-            String confirmPassword = confirmPasswordField.getText();
-        
-            // Validate the user's input
-            if (username.isEmpty() || email.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
-                Alert alert = new Alert(Alert.AlertType.ERROR);
-                alert.setTitle("Error");
-                alert.setHeaderText("Missing Information");
-                alert.setContentText("Please fill in all fields.");
-                alert.showAndWait();
+    String username = usernameField.getText();
+    String password = passwordField.getText();
+    String email = emailField.getText();
+
+    if (username.isEmpty() || password.isEmpty() || email.isEmpty()) {
+        showAlert(Alert.AlertType.ERROR, "Error", "Please fill all fields.");
+        return;
+    }
+
+    try (Connection conn = DBHelper.getConnection()) {
+        // Check for existing username
+        String checkUsernameSQL = "SELECT COUNT(*) FROM users WHERE username = ?";
+        try (PreparedStatement checkUsernameStmt = conn.prepareStatement(checkUsernameSQL)) {
+            checkUsernameStmt.setString(1, username);
+            ResultSet rs = checkUsernameStmt.executeQuery();
+            if (rs.next() && rs.getInt(1) > 0) {
+                showAlert(Alert.AlertType.ERROR, "Username Exists", "Username already exists. Please choose a different one.");
                 return;
-            }
-        
-            if (!password.equals(confirmPassword)) {
-                Alert alert = new Alert(Alert.AlertType.ERROR);
-                alert.setTitle("Error");
-                alert.setHeaderText("Passwords Do Not Match");
-                alert.setContentText("Please ensure that your passwords match.");
-                alert.showAndWait();
-                return;
-            }
-        
-            saveUserToDatabase(username, email, password);
-        
-            // Clear the input fields
-            usernameField.clear();
-            emailField.clear();
-            passwordField.clear();
-            confirmPasswordField.clear();
-        
-            // Show a success message
-            Alert successAlert = new Alert(Alert.AlertType.INFORMATION);
-            successAlert.setTitle("Success");
-            successAlert.setHeaderText("Account Created");
-            successAlert.setContentText("Your account has been successfully created. Please sign in.");
-            successAlert.showAndWait();
-        });}
-        private void saveUserToDatabase(String username, String email, String password) {
-            String url = "jdbc:sqlite:database/moviedb.db";  // Adjust path if needed
-        
-            String sql = "INSERT INTO users(username, email, password, role) VALUES(?, ?, ?, ?)";
-        
-            try (Connection conn = DriverManager.getConnection(url);
-                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
-        
-                pstmt.setString(1, username);
-                pstmt.setString(2, email);
-                pstmt.setString(3, password);         // Consider hashing in production
-                pstmt.setString(4, "customer");       // Default role for sign-up
-        
-                pstmt.executeUpdate();
-                System.out.println("✅ User saved to database: " + username);
-        
-            } catch (SQLException e) {
-                System.err.println("Error saving user to database: " + e.getMessage());
-                Alert dbErrorAlert = new Alert(Alert.AlertType.ERROR);
-                dbErrorAlert.setTitle("Database Error");
-                dbErrorAlert.setHeaderText("Could not save user");
-                dbErrorAlert.setContentText("An error occurred while saving your information. Please try again.");
-                dbErrorAlert.showAndWait();
             }
         }
+
+        // Check for existing email
+        String checkEmailSQL = "SELECT COUNT(*) FROM users WHERE email = ?";
+        try (PreparedStatement checkEmailStmt = conn.prepareStatement(checkEmailSQL)) {
+            checkEmailStmt.setString(1, email);
+            ResultSet rs = checkEmailStmt.executeQuery();
+            if (rs.next() && rs.getInt(1) > 0) {
+                showAlert(Alert.AlertType.ERROR, "Email Exists", "Email already exists. Please use a different one.");
+                return;
+            }
+        }
+
+        // If both unique, insert user
+        String insertSQL = "INSERT INTO users(username, password, email) VALUES(?, ?, ?)";
+        try (PreparedStatement insertStmt = conn.prepareStatement(insertSQL)) {
+            insertStmt.setString(1, username);
+            insertStmt.setString(2, password);
+            insertStmt.setString(3, email);
+            insertStmt.executeUpdate();
+            showAlert(Alert.AlertType.INFORMATION, "Success", "Registration successful!");
+        }
+
+    } catch (SQLException e) {
+        e.printStackTrace();
+        showAlert(Alert.AlertType.ERROR, "Database Error", "Could not complete registration.");
+    }
+});
+    }
         
+        private void showAlert(Alert.AlertType alertType, String title, String message) {
+    Alert alert = new Alert(alertType);
+    alert.setTitle(title);
+    alert.setHeaderText(null);
+    alert.setContentText(message);
+    alert.showAndWait();
+}
+
 }
         

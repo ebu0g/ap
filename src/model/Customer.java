@@ -12,6 +12,9 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
+
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -90,90 +93,132 @@ public class Customer extends BorderPane {
     }
 
     public void handleSeatSelection(String movieTitle) {
-        int movieId = getMovieIdByTitle(movieTitle);
-        if (movieId == -1) {
-            showAlert("Movie Not Found", "The selected movie does not exist.");
-            return;
-        }
-
-        String selectedSeat = null;
-        String query = "SELECT seat_number FROM seats WHERE movie_id = ? AND is_booked = 0 ORDER BY seat_number LIMIT 1";
-        try (Connection conn = DBHelper.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(query)) {
-            stmt.setInt(1, movieId);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                selectedSeat = rs.getString("seat_number");
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-            showAlert("Database Error", "Error fetching available seats.");
-            return;
-        }
-
-        if (selectedSeat == null) {
-            showAlert("No Seats Available", "There are no available seats for this movie.");
-            return;
-        }
-
-        try (Connection conn = DBHelper.getConnection()) {
-            String update = "UPDATE seats SET is_booked = 1 WHERE movie_id = ? AND seat_number = ?";
-            try (PreparedStatement stmt = conn.prepareStatement(update)) {
-                stmt.setInt(1, movieId);
-                stmt.setString(2, selectedSeat);
-                int updated = stmt.executeUpdate();
-                if (updated > 0) {
-                    showAlert("Booking Confirmed", "Seat " + selectedSeat + " has been automatically booked for you.");
-                } else {
-                    showAlert("Booking Failed", "Could not book the seat.");
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-            showAlert("Error", "Failed to book the seat.");
-        }
+    int movieId = getMovieIdByTitle(movieTitle);
+    if (movieId == -1) {
+        showAlert("Movie Not Found", "The selected movie does not exist.");
+        return;
     }
+
+    String selectedSeat = null;
+    String selectAvailableSeatSQL = """
+        SELECT seat_number
+        FROM seats
+        WHERE movie_id = ?
+        AND seat_number NOT IN (
+            SELECT seat_number FROM booking WHERE movie_id = ?
+        )
+        ORDER BY CAST(SUBSTR(seat_number, 2) AS INTEGER)
+        LIMIT 1
+    """;
+
+    try (Connection conn = DBHelper.getConnection();
+         PreparedStatement stmt = conn.prepareStatement(selectAvailableSeatSQL)) {
+        stmt.setInt(1, movieId);
+        stmt.setInt(2, movieId);
+        ResultSet rs = stmt.executeQuery();
+        if (rs.next()) {
+            selectedSeat = rs.getString("seat_number");
+        }
+    } catch (SQLException e) {
+        e.printStackTrace();
+        showAlert("Database Error", "Failed to find available seat.");
+        return;
+    }
+
+    if (selectedSeat == null) {
+        showAlert("No Seats Available", "All seats for this movie are already booked.");
+        return;
+    }
+
+    try (Connection conn = DBHelper.getConnection()) {
+        conn.setAutoCommit(false);
+
+        String insertBookingSQL = "INSERT OR IGNORE INTO booking (movie_id, seat_number) VALUES (?, ?)";
+        try (PreparedStatement bookingStmt = conn.prepareStatement(insertBookingSQL, Statement.RETURN_GENERATED_KEYS)) {
+            bookingStmt.setInt(1, movieId);
+            bookingStmt.setString(2, selectedSeat);
+            bookingStmt.executeUpdate();
+
+            ResultSet keys = bookingStmt.getGeneratedKeys();
+            if (keys.next()) {
+                int bookingId = keys.getInt(1);
+
+                String insertTicketSQL = "INSERT INTO ticket (booking_id, movie_id, seat_number) VALUES (?, ?, ?)";
+                try (PreparedStatement ticketStmt = conn.prepareStatement(insertTicketSQL)) {
+                    ticketStmt.setInt(1, bookingId);
+                    ticketStmt.setInt(2, movieId);
+                    ticketStmt.setString(3, selectedSeat);
+                    ticketStmt.executeUpdate();
+                }
+
+                conn.commit();
+                showAlert("Booking Confirmed", "Seat " + selectedSeat + " successfully booked.");
+            } else {
+                conn.rollback();
+                showAlert("Booking Failed", "Seat was already booked.");
+            }
+        } catch (SQLException e) {
+            conn.rollback();
+            e.printStackTrace();
+            showAlert("Booking Failed", "Seat might have been already booked.");
+        }
+    } catch (SQLException e) {
+        e.printStackTrace();
+    }
+}
+
 
     private void handleRating() {
-        List<String> selectedItem = tableView.getSelectionModel().getSelectedItem();
-        if (selectedItem == null) {
-            showAlert("No Movie Selected", "Please select a movie to rate.");
-            return;
-        }
+    List<String> selectedItem = tableView.getSelectionModel().getSelectedItem();
+    if (selectedItem == null) {
+        showAlert("No Movie Selected", "Please select a movie to rate.");
+        return;
+    }
 
-        String movieTitle = selectedItem.get(0);
-        int movieId = getMovieIdByTitle(movieTitle);
+    String movieTitle = selectedItem.get(0);
+    int movieId = getMovieIdByTitle(movieTitle);
 
-        TextInputDialog dialog = new TextInputDialog();
-        dialog.setTitle("Review Movie");
-        dialog.setHeaderText("Provide a rating between 1 and 5 for " + movieTitle);
-        dialog.setContentText("Rating:");
+    // First prompt for the rating
+    TextInputDialog ratingDialog = new TextInputDialog();
+    ratingDialog.setTitle("Review Movie");
+    ratingDialog.setHeaderText("Provide a rating between 1 and 5 for " + movieTitle);
+    ratingDialog.setContentText("Rating:");
 
-        dialog.showAndWait().ifPresent(input -> {
-            try {
-                int rating = Integer.parseInt(input);
-                if (rating < 1 || rating > 5) {
-                    showAlert("Invalid Rating", "Rating must be between 1 and 5.");
-                    return;
-                }
+    ratingDialog.showAndWait().ifPresent(ratingInput -> {
+        try {
+            int rating = Integer.parseInt(ratingInput);
+            if (rating < 1 || rating > 5) {
+                showAlert("Invalid Rating", "Rating must be between 1 and 5.");
+                return;
+            }
 
+            // Now prompt for the comment
+            TextInputDialog commentDialog = new TextInputDialog();
+            commentDialog.setTitle("Review Movie");
+            commentDialog.setHeaderText("Leave a comment for " + movieTitle);
+            commentDialog.setContentText("Comment:");
+
+            commentDialog.showAndWait().ifPresent(comment -> {
                 try (Connection conn = DBHelper.getConnection()) {
-                    String insertRating = "INSERT INTO rating (movie_id, rating) VALUES (?, ?)";
-                    try (PreparedStatement stmt = conn.prepareStatement(insertRating)) {
+                    String insertReview = "INSERT INTO review (movie_id, rating, comment) VALUES (?, ?, ?)";
+                    try (PreparedStatement stmt = conn.prepareStatement(insertReview)) {
                         stmt.setInt(1, movieId);
                         stmt.setInt(2, rating);
+                        stmt.setString(3, comment);
                         stmt.executeUpdate();
-                        showAlert("Thank You", "Your rating has been recorded.");
+                        showAlert("Thank You", "Your review has been recorded.");
                     }
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    showAlert("Database Error", "Failed to save your review.");
                 }
-            } catch (NumberFormatException e) {
-                showAlert("Invalid Input", "Please enter a valid number.");
-            } catch (SQLException e) {
-                e.printStackTrace();
-                showAlert("Database Error", "Failed to save your rating.");
-            }
-        });
-    }
+            });
+
+        } catch (NumberFormatException e) {
+            showAlert("Invalid Input", "Please enter a valid number for rating.");
+        }
+    });
+}
 
     public int getMovieIdByTitle(String title) {
         String query = "SELECT id FROM movies WHERE title = ?";
