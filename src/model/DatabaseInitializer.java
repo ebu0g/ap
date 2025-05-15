@@ -79,8 +79,8 @@ public class DatabaseInitializer {
 
         stmt.execute("""
                     CREATE TABLE IF NOT EXISTS revenue (
-                        movie_id INTEGER,
-                        total_revenue REAL,
+                        movie_id INTEGER PRIMARY KEY,
+                        total_revenue REAL NOT NULL DEFAULT 0,
                         FOREIGN KEY (movie_id) REFERENCES movies(id)
                     );
                 """);
@@ -150,12 +150,20 @@ public class DatabaseInitializer {
                 pstmt.executeBatch();
             }
 
-        stmt.execute("""
-                    INSERT OR IGNORE INTO revenue (movie_id, total_revenue)
-                    VALUES
-                    (1, 500.0),
-                    (2, 900.0);
-                """);
+        try (var rs = stmt.executeQuery("SELECT id FROM movies");
+     var pstmt = conn.prepareStatement(
+         "INSERT OR IGNORE INTO revenue (movie_id, total_revenue) VALUES (?, ?)"
+     )) {
+
+    while (rs.next()) {
+        int movieId = rs.getInt("id");
+        pstmt.setInt(1, movieId);
+        pstmt.setDouble(2, 0.0); // Start with 0 revenue
+        pstmt.addBatch();
+    }
+    pstmt.executeBatch();
+}
+
 
         stmt.execute("""
                     INSERT OR IGNORE INTO booking (movie_id, seat_number)

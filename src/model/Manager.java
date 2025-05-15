@@ -308,20 +308,21 @@ public class Manager extends Application {
     }
 
     private void showRevenue() {
-    // 1. Calculate and save revenue for all movies
-    MovieDAO movieDAO = new MovieDAO();
-    RevenueDAO revenueDAO = new RevenueDAO();
-    List<Movie> movies = movieDAO.getAllMovies();
+        MovieDAO movieDAO = new MovieDAO();
+        RevenueDAO revenueDAO = new RevenueDAO();
 
-    for (Movie movie : movies) {
-        int movieId = movie.getId();
-        double totalRevenue = revenueDAO.calculateRevenueForMovie(movieId); // You must define this method
-        revenueDAO.insertRevenue(movieId, totalRevenue); // Saves to revenue table
+        List<Movie> movies = movieDAO.getAllMovies();
+        double totalRevenue = 0.0;
+
+        for (Movie movie : movies) {
+            double revenue = revenueDAO.calculateRevenueForMovie(movie.getId());
+            totalRevenue += revenue;
+            revenueDAO.insertRevenue(movie.getId(), revenue);
+        }
+
+        showAlert(Alert.AlertType.INFORMATION, "Total Revenue", "Total revenue from all booked tickets: $" + totalRevenue);
+        new RevenueView().showRevenueWindow();
     }
-
-    // 2. Open the Revenue view window
-    new RevenueView().showRevenueWindow();
-}
 
     private void showCustomerList() {
         customerTable = new TableView<>();
@@ -374,12 +375,14 @@ public class Manager extends Application {
         return list;
     }
 
-    private void showAlert(Alert.AlertType type, String title, String message) {
-        Alert alert = new Alert(type);
-        alert.setTitle(title);
-        alert.setContentText(message);
-        alert.showAndWait();
-    }
+    private void showAlert(Alert.AlertType alertType, String title, String message) {
+    Alert alert = new Alert(alertType);
+    alert.setTitle(title);
+    alert.setHeaderText(null);
+    alert.setContentText(message);
+    alert.showAndWait();
+}
+
 
 
     public static void main(String[] args) {

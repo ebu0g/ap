@@ -37,8 +37,10 @@ public class MovieDAO {
             String title = rs.getString("title");
             String genre = rs.getString("genre");
             int duration = rs.getInt("duration");
+            double price = rs.getDouble("price"); 
 
-            Movie movie = new Movie(id, title, genre, duration);
+
+            Movie movie = new Movie(id, title, genre, duration, price);
             movies.add(movie);
         }
 
