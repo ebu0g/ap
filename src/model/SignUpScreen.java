@@ -75,6 +75,14 @@ public class SignUpScreen extends GridPane {
         return;
     }
 
+    String confirmPassword = confirmPasswordField.getText();
+
+    if (!password.equals(confirmPassword)) {
+        showAlert(Alert.AlertType.ERROR, "Error", "Passwords do not match.");
+        return;
+    }
+
+
     try (Connection conn = DBHelper.getConnection()) {
         // Check for existing username
         String checkUsernameSQL = "SELECT COUNT(*) FROM users WHERE username = ?";

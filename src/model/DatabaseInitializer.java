@@ -129,9 +129,8 @@ public class DatabaseInitializer {
                 """);
 
         try (var pstmt = conn.prepareStatement(
-            "INSERT OR IGNORE INTO seats (movie_id, seat_number, is_booked) VALUES (?, ?, 0)"
-        );
-             var rs = stmt.executeQuery("SELECT id, total_seats FROM movies")) {
+                "INSERT OR IGNORE INTO seats (movie_id, seat_number, is_booked) VALUES (?, ?, 0)");
+                var rs = stmt.executeQuery("SELECT id, total_seats FROM movies")) {
 
             while (rs.next()) {
                 int movieId = rs.getInt("id");
@@ -148,9 +147,8 @@ public class DatabaseInitializer {
         }
 
         try (var rs = stmt.executeQuery("SELECT id FROM movies");
-             var pstmt = conn.prepareStatement(
-                 "INSERT OR IGNORE INTO revenue (movie_id, total_revenue) VALUES (?, ?)"
-             )) {
+                var pstmt = conn.prepareStatement(
+                        "INSERT OR IGNORE INTO revenue (movie_id, total_revenue) VALUES (?, ?)")) {
 
             while (rs.next()) {
                 int movieId = rs.getInt("id");
@@ -169,11 +167,11 @@ public class DatabaseInitializer {
                 """);
 
         stmt.execute("""
-                    INSERT OR IGNORE INTO ticket (booking_id, movie_id, seat_number)
-                    VALUES
-                    (1, 1, 'S1'),
-                    (2, 1, 'S3');
-                    """);
+                INSERT OR IGNORE INTO ticket (booking_id, movie_id, seat_number)
+                VALUES
+                (1, 1, 'S1'),
+                (2, 1, 'S3');
+                """);
 
         System.out.println("✅ Sample data inserted successfully.");
     }

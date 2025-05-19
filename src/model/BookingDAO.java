@@ -121,7 +121,7 @@ public class BookingDAO {
 
             ResultSet rs = ps.getGeneratedKeys();
             if (rs.next()) {
-                return rs.getInt(1);  // booking ID
+                return rs.getInt(1);  
             } else {
                 throw new SQLException("Failed to retrieve booking ID.");
             }
